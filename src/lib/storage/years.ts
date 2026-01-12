@@ -1,58 +1,33 @@
 import type {
   CalculatorInputValues,
-  YearData,
-  YearsData,
   RevenueTransaction,
+  YearData,
 } from "@/lib/tax/types";
 
-const STORAGE_KEY = "forfettario.years.v1";
+const API_BASE = "/api/years";
 
-export function readYearsData(): YearsData {
-  if (typeof window === "undefined") return {};
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return {};
-    return JSON.parse(raw);
-  } catch {
-    return {};
-  }
+export async function fetchYears(): Promise<number[]> {
+  const res = await fetch(API_BASE, { cache: "no-store" });
+  if (!res.ok) throw new Error("Failed to fetch years");
+  return await res.json();
 }
 
-export function saveYearsData(data: YearsData): void {
-  if (typeof window === "undefined") return;
-  try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  } catch {
-    // Ignore storage errors
-  }
+export async function fetchYearData(year: number): Promise<YearData | null> {
+  const res = await fetch(`${API_BASE}/${year}`, { cache: "no-store" });
+  if (!res.ok) throw new Error("Failed to fetch year");
+  return await res.json();
 }
 
-export function getYearData(year: number): YearData | null {
-  const data = readYearsData();
-  const yearData = data[String(year)];
-  if (!yearData) return null;
-  // Migrate old data format
-  if (!yearData.transactions) {
-    yearData.transactions = [];
-  }
-  return yearData;
+export async function saveYearData(yearData: YearData): Promise<void> {
+  await fetch(`${API_BASE}/${yearData.year}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(yearData),
+  });
 }
 
-export function saveYearData(yearData: YearData): void {
-  const data = readYearsData();
-  data[String(yearData.year)] = {
-    ...yearData,
-    lastUpdated: new Date().toISOString(),
-  };
-  saveYearsData(data);
-}
-
-export function getAllYears(): number[] {
-  const data = readYearsData();
-  return Object.keys(data)
-    .map(Number)
-    .filter((year) => !isNaN(year))
-    .sort((a, b) => b - a);
+export async function deleteYearData(year: number): Promise<void> {
+  await fetch(`${API_BASE}/${year}`, { method: "DELETE" });
 }
 
 export function createYearData(
@@ -68,10 +43,4 @@ export function createYearData(
     transactions,
     lastUpdated: new Date().toISOString(),
   };
-}
-
-export function deleteYearData(year: number): void {
-  const data = readYearsData();
-  delete data[String(year)];
-  saveYearsData(data);
 }

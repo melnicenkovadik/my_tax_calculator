@@ -1,7 +1,7 @@
 "use client";
 
 import { formatCurrency } from "@/lib/format/currency";
-import { getAllYears, getYearData, deleteYearData } from "@/lib/storage/years";
+import { fetchYears, fetchYearData, deleteYearData } from "@/lib/storage/years";
 import { parseCalculatorInputs } from "@/lib/tax/validation";
 import { computeTotals } from "@/lib/tax/calculations";
 import { useState, useEffect } from "react";
@@ -15,11 +15,23 @@ export function YearsOverview({
   onYearSelect,
   onRefresh,
 }: YearsOverviewProps) {
-  const [years, setYears] = useState<number[]>(getAllYears());
+  const [years, setYears] = useState<number[]>([]);
 
   useEffect(() => {
-    setYears(getAllYears());
-  });
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const list = await fetchYears();
+        if (!cancelled) setYears(list);
+      } catch {
+        if (!cancelled) setYears([]);
+      }
+    };
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [onRefresh]);
 
   if (years.length === 0) {
     return null;
@@ -47,7 +59,20 @@ export function YearsOverview({
 
       <div className="mt-6 grid gap-3">
         {years.map((year) => {
-          const yearData = getYearData(year);
+          const [yearData, setYearData] = useState<any | null>(null);
+          useEffect(() => {
+            let cancelled = false;
+            fetchYearData(year)
+              .then((data) => {
+                if (!cancelled) setYearData(data);
+              })
+              .catch(() => {
+                if (!cancelled) setYearData(null);
+              });
+            return () => {
+              cancelled = true;
+            };
+          }, [year]);
           if (!yearData) return null;
 
           const parsed = parseCalculatorInputs(yearData.inputs);
