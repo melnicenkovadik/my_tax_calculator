@@ -32,6 +32,7 @@ import {
   fetchYearData,
   saveYearData,
   createYearData,
+  deleteTransaction,
 } from "@/lib/storage/years";
 
 const defaultInputValues: CalculatorInputValues = {
@@ -371,7 +372,10 @@ export function HomeClient({ initialYear, initialData }: HomeClientProps) {
     const updatedTransactions = transactions.filter((t) => t.id !== id);
     setTransactions(updatedTransactions);
     
-    // Explicitly save to database after deletion
+    // Delete from database via API
+    await deleteTransaction(id);
+    
+    // Also update the year data to keep it in sync
     if (state.hydrated) {
       const yearNum = parseInt(state.values.year, 10);
       if (!isNaN(yearNum)) {
