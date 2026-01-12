@@ -1,0 +1,557 @@
+"use client";
+
+import { useEffect, useMemo, useReducer, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { CalculatorForm } from "@/components/CalculatorForm";
+import { ResultsPanel } from "@/components/ResultsPanel";
+import { SchedulePanel } from "@/components/SchedulePanel";
+import { YearSelector } from "@/components/YearSelector";
+import { YearsOverview } from "@/components/YearsOverview";
+import { YearSummary } from "@/components/YearSummary";
+import { RevenueTransactions } from "@/components/RevenueTransactions";
+import Link from "next/link";
+import { formatCurrency, formatPercent } from "@/lib/format/currency";
+import {
+  computeSchedule,
+  computeTotals,
+  resolveScheduleSplit,
+} from "@/lib/tax/calculations";
+import type {
+  CalculatorInputValues,
+  CalculatorInputs,
+  ScheduleItem,
+  ScheduleSplit,
+  RevenueTransaction,
+  YearData,
+} from "@/lib/tax/types";
+import {
+  calculatorInputValuesSchema,
+  parseCalculatorInputs,
+} from "@/lib/tax/validation";
+import {
+  fetchYearData,
+  saveYearData,
+  createYearData,
+} from "@/lib/storage/years";
+
+const defaultInputValues: CalculatorInputValues = {
+  year: String(new Date().getFullYear()),
+  revenue: "0",
+  coeff: "0.67",
+  taxRate: "0.05",
+  inpsType: "gestione_separata",
+  inpsRate: "0.26",
+  inpsDeductible: true,
+  applyAcconti: true,
+  splitModel: "standard",
+  customSplitJune: "0.4",
+  customSplitNovember: "0.6",
+};
+
+const initialParsed = parseCalculatorInputs(defaultInputValues)
+  .parsed as CalculatorInputs;
+
+type State = {
+  values: CalculatorInputValues;
+  defaults: CalculatorInputValues;
+  errors: Record<string, string>;
+  lastValid: CalculatorInputs;
+  hydrated: boolean;
+};
+
+type Action =
+  | {
+      type: "hydrate";
+      values: CalculatorInputValues;
+      defaults: CalculatorInputValues;
+    }
+  | {
+      type: "setField";
+      field: keyof CalculatorInputValues;
+      value: string | boolean;
+    }
+  | { type: "reset" }
+  | { type: "saveDefaults" }
+  | { type: "import"; values: CalculatorInputValues; defaults?: CalculatorInputValues };
+
+const applyValues = (
+  values: CalculatorInputValues,
+  fallback: CalculatorInputs,
+) => {
+  const { parsed, errors } = parseCalculatorInputs(values);
+  return {
+    values,
+    errors,
+    lastValid: parsed ?? fallback,
+  };
+};
+
+const reducer = (state: State, action: Action): State => {
+  switch (action.type) {
+    case "hydrate": {
+      const fallback =
+        parseCalculatorInputs(action.defaults).parsed ?? state.lastValid;
+      return {
+        ...state,
+        defaults: action.defaults,
+        hydrated: true,
+        ...applyValues(action.values, fallback),
+      };
+    }
+    case "setField": {
+      const nextValues = {
+        ...state.values,
+        [action.field]: action.value,
+      } as CalculatorInputValues;
+      return {
+        ...state,
+        ...applyValues(nextValues, state.lastValid),
+      };
+    }
+    case "reset": {
+      const fallback =
+        parseCalculatorInputs(state.defaults).parsed ?? state.lastValid;
+      return {
+        ...state,
+        ...applyValues(state.defaults, fallback),
+      };
+    }
+    case "saveDefaults": {
+      if (Object.keys(state.errors).length > 0) {
+        return state;
+      }
+      return {
+        ...state,
+        defaults: state.values,
+      };
+    }
+    case "import": {
+      const fallback =
+        parseCalculatorInputs(action.values).parsed ?? state.lastValid;
+      return {
+        ...state,
+        defaults: action.defaults ?? state.defaults,
+        ...applyValues(action.values, fallback),
+      };
+    }
+    default:
+      return state;
+  }
+};
+
+const readStorage = (key: string) => {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+};
+
+const parseInputValues = (payload: unknown) => {
+  const result = calculatorInputValuesSchema.safeParse(payload);
+  return result.success ? result.data : null;
+};
+
+const buildSummary = (
+  inputs: CalculatorInputs,
+  results: ReturnType<typeof computeTotals>,
+  schedule: ScheduleItem[],
+  split: ScheduleSplit,
+) => {
+  const lines: string[] = [
+    `Калькулятор податків Italian Forfettario (${inputs.year})`,
+    `Дохід: ${formatCurrency(inputs.revenue)}`,
+    `Коефіцієнт: ${inputs.coeff.toFixed(2)}`,
+    `Оподатковувана база: ${formatCurrency(results.taxableBase)}`,
+    `INPS (${inputs.inpsType === "gestione_separata" ? "Gestione Separata" : "Artigiani/Commercianti"} ${
+      inputs.inpsType === "gestione_separata" ? formatPercent(inputs.inpsRate) : ""
+    }): ${formatCurrency(results.inps)}`,
+    `Податкова база після відрахування INPS: ${formatCurrency(
+      results.baseAfterDeduction,
+    )}`,
+    `Imposta sostitutiva (${formatPercent(inputs.taxRate)}): ${formatCurrency(
+      results.tax,
+    )}`,
+    `Всього до сплати: ${formatCurrency(results.totalDue)}`,
+  ];
+
+  if (inputs.applyAcconti) {
+    lines.push("Графік платежів (орієнтовно):");
+    schedule.forEach((item) => {
+      if (item.key === "june") {
+        lines.push(
+          `Червень: Сальдо ${inputs.year} + 1-й аконто ${inputs.year + 1} = ${formatCurrency(
+            item.amount,
+          )}`,
+        );
+      } else {
+        lines.push(
+          `Листопад: 2-й аконто ${inputs.year + 1} = ${formatCurrency(
+            item.amount,
+          )}`,
+        );
+      }
+    });
+    lines.push(
+      `Розподіл аконто: ${formatPercent(split.june)} / ${formatPercent(
+        split.november,
+      )} (орієнтовно на основі загальної суми поточного року).`,
+    );
+  } else {
+    const june = schedule[0];
+    lines.push(
+      `Графік: Сальдо за червень ${inputs.year} = ${formatCurrency(
+        june?.amount ?? 0,
+      )}`,
+    );
+  }
+
+  return lines.join("\n");
+};
+
+type HomeClientProps = {
+  initialYear: number;
+  initialData: YearData | null;
+};
+
+export function HomeClient({ initialYear, initialData }: HomeClientProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [state, dispatch] = useReducer(reducer, {
+    values: initialData?.inputs ?? { ...defaultInputValues, year: String(initialYear) },
+    defaults: initialData?.defaults ?? { ...defaultInputValues, year: String(initialYear) },
+    errors: {},
+    lastValid: initialData
+      ? (parseCalculatorInputs(initialData.inputs).parsed ?? initialParsed)
+      : initialParsed,
+    hydrated: !!initialData,
+  });
+  const [copyStatus, setCopyStatus] = useState<string | null>(null);
+  const [yearsRefreshKey, setYearsRefreshKey] = useState(0);
+  const [transactions, setTransactions] = useState<RevenueTransaction[]>(
+    initialData?.transactions ?? [],
+  );
+  const [isCalculatorModalOpen, setIsCalculatorModalOpen] = useState(false);
+
+  // Sync URL with year changes
+  useEffect(() => {
+    if (!state.hydrated) return;
+    const yearNum = parseInt(state.values.year, 10);
+    const urlYear = searchParams.get("year");
+    if (!isNaN(yearNum) && urlYear !== String(yearNum)) {
+      const params = new URLSearchParams(searchParams.toString());
+      params.set("year", String(yearNum));
+      router.replace(`/?${params.toString()}`, { scroll: false });
+    }
+  }, [state.values.year, state.hydrated, router, searchParams]);
+
+  // Load data when year changes from URL
+  useEffect(() => {
+    const urlYear = searchParams.get("year");
+    if (!urlYear) return;
+    const yearNum = parseInt(urlYear, 10);
+    if (isNaN(yearNum)) return;
+    const currentYearNum = parseInt(state.values.year, 10);
+    if (yearNum === currentYearNum) return;
+
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const yearData = await fetchYearData(yearNum);
+        if (cancelled) return;
+        if (yearData) {
+          dispatch({ type: "hydrate", values: yearData.inputs, defaults: yearData.defaults });
+          setTransactions(Array.isArray(yearData.transactions) ? yearData.transactions : []);
+        }
+      } catch {
+        if (cancelled) return;
+      }
+    };
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [searchParams, state.values.year]);
+
+  useEffect(() => {
+    if (!state.hydrated) return;
+    const yearNum = parseInt(state.values.year, 10);
+    if (!isNaN(yearNum)) {
+      saveYearData(createYearData(yearNum, state.values, state.defaults, transactions));
+    }
+  }, [state.hydrated, state.values, state.defaults, transactions]);
+
+  // Calculate total revenue from transactions
+  const totalRevenue = useMemo(() => {
+    return transactions.reduce((sum, t) => sum + t.amount, 0);
+  }, [transactions]);
+
+  // Update revenue in calculations if transactions exist
+  const inputsWithTransactions = useMemo(() => {
+    if (transactions.length > 0) {
+      return { ...state.lastValid, revenue: totalRevenue };
+    }
+    return state.lastValid;
+  }, [state.lastValid, transactions, totalRevenue]);
+
+  const results = useMemo(
+    () => computeTotals(inputsWithTransactions),
+    [inputsWithTransactions],
+  );
+  const split = useMemo(
+    () => resolveScheduleSplit(state.lastValid),
+    [state.lastValid],
+  );
+  const schedule = useMemo(
+    () => computeSchedule(results.totalDue, state.lastValid.applyAcconti, split),
+    [results.totalDue, split, state.lastValid.applyAcconti],
+  );
+  const summaryText = useMemo(
+    () => buildSummary(inputsWithTransactions, results, schedule, split),
+    [inputsWithTransactions, results, schedule, split],
+  );
+
+  const handleCopySummary = async () => {
+    try {
+      await navigator.clipboard.writeText(summaryText);
+      setCopyStatus("Скопійовано");
+    } catch {
+      setCopyStatus("Помилка копіювання");
+    }
+    window.setTimeout(() => setCopyStatus(null), 2000);
+  };
+
+  const handleYearChange = async (year: number) => {
+    // Save current year data before switching
+    const currentYearNum = parseInt(state.values.year, 10);
+    if (!isNaN(currentYearNum)) {
+      await saveYearData(
+        createYearData(currentYearNum, state.values, state.defaults, transactions),
+      );
+    }
+
+    // Update URL
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("year", String(year));
+    router.push(`/?${params.toString()}`, { scroll: false });
+
+    // Load new year data from API; if none, create default
+    let yearData = await fetchYearData(year);
+    if (!yearData) {
+      const newInputs = { ...state.values, year: String(year) };
+      const newDefaults = { ...state.defaults, year: String(year) };
+      yearData = createYearData(year, newInputs, newDefaults, []);
+      await saveYearData(yearData);
+    }
+
+    dispatch({ type: "hydrate", values: yearData.inputs, defaults: yearData.defaults });
+    setTransactions(Array.isArray(yearData.transactions) ? yearData.transactions : []);
+    setYearsRefreshKey((k) => k + 1);
+  };
+
+  const handleAddTransaction = async (transaction: RevenueTransaction) => {
+    const updatedTransactions = [...transactions, transaction];
+    setTransactions(updatedTransactions);
+    
+    // Explicitly save to database after addition
+    if (state.hydrated) {
+      const yearNum = parseInt(state.values.year, 10);
+      if (!isNaN(yearNum)) {
+        await saveYearData(
+          createYearData(yearNum, state.values, state.defaults, updatedTransactions),
+        );
+      }
+    }
+  };
+
+  const handleDeleteTransaction = async (id: string) => {
+    const updatedTransactions = transactions.filter((t) => t.id !== id);
+    setTransactions(updatedTransactions);
+    
+    // Explicitly save to database after deletion
+    if (state.hydrated) {
+      const yearNum = parseInt(state.values.year, 10);
+      if (!isNaN(yearNum)) {
+        await saveYearData(
+          createYearData(yearNum, state.values, state.defaults, updatedTransactions),
+        );
+      }
+    }
+  };
+
+  const handleOpenCalculatorModal = () => {
+    setIsCalculatorModalOpen(true);
+  };
+
+  const handleCloseCalculatorModal = () => {
+    setIsCalculatorModalOpen(false);
+  };
+
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isCalculatorModalOpen) {
+        handleCloseCalculatorModal();
+      }
+    };
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [isCalculatorModalOpen]);
+
+  const currentYearNum = parseInt(state.values.year, 10) || initialYear;
+
+  return (
+    <div className="relative min-h-screen bg-[radial-gradient(circle_at_top_left,#fff3e4,transparent_55%),radial-gradient(circle_at_right,#e8f3ea,transparent_60%),linear-gradient(180deg,#fff6ed,rgba(255,246,237,0.6))] text-foreground">
+      <div className="pointer-events-none absolute -top-24 right-10 h-64 w-64 rounded-full bg-[radial-gradient(circle,#f7e0c8,transparent_70%)] opacity-70 blur-3xl" />
+      <div className="pointer-events-none absolute left-8 top-48 h-72 w-72 rounded-full bg-[radial-gradient(circle,#d9ebdf,transparent_70%)] opacity-70 blur-3xl" />
+
+      <div className="relative mx-auto flex max-w-6xl flex-col gap-8 px-6 py-12">
+        <header className="animate-fade-up">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="inline-flex items-center gap-2 rounded-full border border-card-border bg-white/70 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-muted">
+              Персональний калькулятор
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={handleOpenCalculatorModal}
+                className="rounded-full border border-card-border bg-white/70 px-4 py-2 text-xs font-semibold text-muted transition hover:border-foreground/30 hover:text-foreground"
+              >
+                Вхідні дані
+              </button>
+              <Link
+                href="/backup"
+                className="rounded-full border border-card-border bg-white/70 px-4 py-2 text-xs font-semibold text-muted transition hover:border-foreground/30 hover:text-foreground"
+              >
+                Резервна копія
+              </Link>
+              <YearSelector
+                currentYear={currentYearNum}
+                currentInputs={state.values}
+                currentDefaults={state.defaults}
+                onYearChange={handleYearChange}
+              />
+            </div>
+          </div>
+          <h1 className="mt-4 font-display text-4xl text-foreground sm:text-5xl">
+            Калькулятор податків Italian Forfettario
+          </h1>
+          <p className="mt-3 max-w-2xl text-base text-muted">
+            Один екран для розрахунку оподатковуваної бази, INPS та imposta sostitutiva
+            за режимом Forfettario. Дані зберігаються локально у вашому браузері.
+          </p>
+        </header>
+
+        <YearsOverview
+          key={yearsRefreshKey}
+          onYearSelect={handleYearChange}
+          onRefresh={() => setYearsRefreshKey((k) => k + 1)}
+        />
+
+        <YearSummary
+          year={currentYearNum}
+          totalRevenue={inputsWithTransactions.revenue}
+          transactionCount={transactions.length}
+          results={results}
+          inputs={inputsWithTransactions}
+        />
+
+        <div className="animate-fade-in" style={{ animationDelay: "120ms" }}>
+          <ResultsPanel
+            results={results}
+            inputs={inputsWithTransactions}
+            onCopySummary={handleCopySummary}
+            copyStatus={copyStatus}
+          />
+        </div>
+
+        <div className="animate-fade-in" style={{ animationDelay: "180ms" }}>
+          <RevenueTransactions
+            year={currentYearNum}
+            transactions={transactions}
+            onAddTransaction={handleAddTransaction}
+            onDeleteTransaction={handleDeleteTransaction}
+          />
+        </div>
+
+        <div className="animate-fade-in" style={{ animationDelay: "240ms" }}>
+          <SchedulePanel
+            year={state.lastValid.year}
+            accontoEnabled={state.lastValid.applyAcconti}
+            split={split}
+            items={schedule}
+          />
+        </div>
+
+        <footer className="rounded-2xl border border-card-border bg-white/70 px-4 py-3 text-xs text-muted">
+          Орієнтовний калькулятор. Італійські податкові правила можуть відрізнятися; підтвердіть з кваліфікованим
+          професіоналом.
+        </footer>
+      </div>
+
+      {isCalculatorModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          onClick={handleCloseCalculatorModal}
+        >
+          <div
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm"
+            aria-hidden="true"
+          />
+          <div
+            className="relative z-10 w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl border border-card-border bg-card/95 shadow-2xl backdrop-blur"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="sticky top-0 flex items-center justify-between border-b border-card-border bg-card/95 px-6 py-4 backdrop-blur">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted">
+                  Вхідні дані
+                </p>
+                <h2 className="mt-1 font-display text-2xl text-foreground">
+                  Ваші припущення
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={handleCloseCalculatorModal}
+                className="rounded-full p-2 text-muted transition hover:bg-white/20 hover:text-foreground"
+                aria-label="Закрити"
+              >
+                <svg
+                  className="h-6 w-6"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            </div>
+            <div className="p-6">
+              <CalculatorForm
+                values={state.values}
+                errors={state.errors}
+                onChange={(field, value) =>
+                  dispatch({ type: "setField", field, value })
+                }
+                onReset={() => dispatch({ type: "reset" })}
+                onSaveDefaults={() => {
+                  dispatch({ type: "saveDefaults" });
+                }}
+                canSaveDefaults={Object.keys(state.errors).length === 0}
+                isInModal={true}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
