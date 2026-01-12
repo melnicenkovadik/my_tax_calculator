@@ -20,7 +20,6 @@ const numberField = (
 ) => {
   let base = z
     .number({
-      required_error: `${label} обов'язкове`,
       invalid_type_error: `${label} має бути числом`,
     })
     .finite(`${label} має бути числом`);
