@@ -233,7 +233,7 @@ export default function Home() {
         if (cancelled) return;
         if (yearData) {
           dispatch({ type: "hydrate", values: yearData.inputs, defaults: yearData.defaults });
-          setTransactions(yearData.transactions || []);
+          setTransactions(Array.isArray(yearData.transactions) ? yearData.transactions : []);
           return;
         }
       } catch {
@@ -351,7 +351,7 @@ export default function Home() {
     }
 
     dispatch({ type: "hydrate", values: yearData.inputs, defaults: yearData.defaults });
-    setTransactions(yearData.transactions || []);
+    setTransactions(Array.isArray(yearData.transactions) ? yearData.transactions : []);
     setYearsRefreshKey((k) => k + 1);
   };
 
