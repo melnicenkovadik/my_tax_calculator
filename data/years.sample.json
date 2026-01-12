@@ -1,0 +1,102 @@
+{
+  "2024": {
+    "year": 2024,
+    "inputs": {
+      "year": "2024",
+      "revenue": "0",
+      "coeff": "0.67",
+      "taxRate": "0.05",
+      "inpsType": "gestione_separata",
+      "inpsRate": "0.26",
+      "inpsDeductible": true,
+      "applyAcconti": true,
+      "splitModel": "standard",
+      "customSplitJune": "0.4",
+      "customSplitNovember": "0.6"
+    },
+    "defaults": {
+      "year": "2026",
+      "revenue": "0",
+      "coeff": "0.67",
+      "taxRate": "0.05",
+      "inpsType": "gestione_separata",
+      "inpsRate": "0.26",
+      "inpsDeductible": true,
+      "applyAcconti": true,
+      "splitModel": "standard",
+      "customSplitJune": "0.4",
+      "customSplitNovember": "0.6"
+    },
+    "transactions": [],
+    "lastUpdated": "2026-01-12T11:36:41.038Z"
+  },
+  "2025": {
+    "year": 2025,
+    "inputs": {
+      "year": "2025",
+      "revenue": "0",
+      "coeff": "0.67",
+      "taxRate": "0.05",
+      "inpsType": "gestione_separata",
+      "inpsRate": "0.26",
+      "inpsDeductible": false,
+      "applyAcconti": true,
+      "splitModel": "standard",
+      "customSplitJune": "0.4",
+      "customSplitNovember": "0.6"
+    },
+    "defaults": {
+      "year": "2025",
+      "revenue": "0",
+      "coeff": "0.67",
+      "taxRate": "0.05",
+      "inpsType": "gestione_separata",
+      "inpsRate": "0.26",
+      "inpsDeductible": true,
+      "applyAcconti": true,
+      "splitModel": "standard",
+      "customSplitJune": "0.4",
+      "customSplitNovember": "0.6"
+    },
+    "transactions": [
+      {
+        "id": "1768217671455-p6snnzhgv",
+        "date": "2025-07-15",
+        "amount": 9500,
+        "description": "2025 рік всі доходи"
+      }
+    ],
+    "lastUpdated": "2026-01-12T11:35:48.495Z"
+  },
+  "2026": {
+    "year": 2026,
+    "inputs": {
+      "year": "2024",
+      "revenue": "0",
+      "coeff": "0.67",
+      "taxRate": "0.05",
+      "inpsType": "gestione_separata",
+      "inpsRate": "0.26",
+      "inpsDeductible": true,
+      "applyAcconti": true,
+      "splitModel": "standard",
+      "customSplitJune": "0.4",
+      "customSplitNovember": "0.6"
+    },
+    "defaults": {
+      "year": "2026",
+      "revenue": "0",
+      "coeff": "0.67",
+      "taxRate": "0.05",
+      "inpsType": "gestione_separata",
+      "inpsRate": "0.26",
+      "inpsDeductible": true,
+      "applyAcconti": true,
+      "splitModel": "standard",
+      "customSplitJune": "0.4",
+      "customSplitNovember": "0.6"
+    },
+    "transactions": [],
+    "lastUpdated": "2026-01-12T11:19:56.014Z"
+  }
+}
