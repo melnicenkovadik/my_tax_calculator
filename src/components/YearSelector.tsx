@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import type { CalculatorInputValues } from "@/lib/tax/types";
-import { getAllYears, saveYearData, createYearData } from "@/lib/storage/years";
+import { fetchYears } from "@/lib/storage/years";
 
 type YearSelectorProps = {
   currentYear: number;
@@ -17,12 +17,14 @@ export function YearSelector({
   currentDefaults,
   onYearChange,
 }: YearSelectorProps) {
-  const [years, setYears] = useState<number[]>(getAllYears());
+  const [years, setYears] = useState<number[]>([]);
   const [showNewYearInput, setShowNewYearInput] = useState(false);
   const [newYear, setNewYear] = useState(String(new Date().getFullYear()));
 
   useEffect(() => {
-    setYears(getAllYears());
+    fetchYears()
+      .then(setYears)
+      .catch(() => setYears([]));
   }, [currentYear]);
 
   const handleAddYear = () => {
@@ -35,7 +37,9 @@ export function YearSelector({
     // Just trigger the year change
     onYearChange(yearNum);
 
-    setYears(getAllYears());
+    fetchYears()
+      .then(setYears)
+      .catch(() => setYears([]));
     setShowNewYearInput(false);
     setNewYear(String(new Date().getFullYear()));
   };

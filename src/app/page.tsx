@@ -26,10 +26,11 @@ import {
   parseCalculatorInputs,
 } from "@/lib/tax/validation";
 import {
-  getYearData,
+  fetchYearData,
+  fetchYears,
   saveYearData,
   createYearData,
-  getAllYears,
+  deleteYearData,
 } from "@/lib/storage/years";
 
 const defaultInputValues: CalculatorInputValues = {
@@ -70,8 +71,7 @@ type Action =
     }
   | { type: "reset" }
   | { type: "saveDefaults" }
-  | { type: "import"; values: CalculatorInputValues; defaults?: CalculatorInputValues }
-  | { type: "switchYear"; year: number };
+  | { type: "import"; values: CalculatorInputValues; defaults?: CalculatorInputValues };
 
 const applyValues = (
   values: CalculatorInputValues,
@@ -131,19 +131,6 @@ const reducer = (state: State, action: Action): State => {
         ...state,
         defaults: action.defaults ?? state.defaults,
         ...applyValues(action.values, fallback),
-      };
-    }
-    case "switchYear": {
-      const yearData = getYearData(action.year);
-      if (!yearData) {
-        return state;
-      }
-      const fallback =
-        parseCalculatorInputs(yearData.defaults).parsed ?? state.lastValid;
-      return {
-        ...state,
-        defaults: yearData.defaults,
-        ...applyValues(yearData.inputs, fallback),
       };
     }
     default:
@@ -238,27 +225,38 @@ export default function Home() {
   const [transactions, setTransactions] = useState<RevenueTransaction[]>([]);
 
   useEffect(() => {
-    const currentYearNum = new Date().getFullYear();
-    const yearData = getYearData(currentYearNum);
-    
-    if (yearData) {
-      dispatch({ type: "hydrate", values: yearData.inputs, defaults: yearData.defaults });
-      setTransactions(yearData.transactions || []);
-    } else {
-      // Try legacy storage
+    let cancelled = false;
+    const load = async () => {
+      const currentYearNum = new Date().getFullYear();
+      try {
+        const yearData = await fetchYearData(currentYearNum);
+        if (cancelled) return;
+        if (yearData) {
+          dispatch({ type: "hydrate", values: yearData.inputs, defaults: yearData.defaults });
+          setTransactions(yearData.transactions || []);
+          return;
+        }
+      } catch {
+        if (cancelled) return;
+      }
+
       const storedDefaults = parseInputValues(readStorage("forfettario.defaults.v1"));
       const defaults = storedDefaults ?? defaultInputValues;
       const storedInputs = parseInputValues(readStorage("forfettario.inputs.v1"));
       const values = storedInputs ?? defaults;
-      
-      // Migrate to new storage
+
       if (storedInputs || storedDefaults) {
-        saveYearData(createYearData(currentYearNum, values, defaults, []));
+        await saveYearData(createYearData(currentYearNum, values, defaults, []));
       }
-      
+
+      if (cancelled) return;
       dispatch({ type: "hydrate", values, defaults });
       setTransactions([]);
-    }
+    };
+    load();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -334,28 +332,26 @@ export default function Home() {
     }
   };
 
-  const handleYearChange = (year: number) => {
+  const handleYearChange = async (year: number) => {
     // Save current year data before switching
     const currentYearNum = parseInt(state.values.year, 10);
     if (!isNaN(currentYearNum)) {
-      saveYearData(
+      await saveYearData(
         createYearData(currentYearNum, state.values, state.defaults, transactions),
       );
     }
 
-    // Load new year data
-    const yearData = getYearData(year);
-    if (yearData) {
-      dispatch({ type: "switchYear", year });
-      setTransactions(yearData.transactions || []);
-    } else {
-      // Create new year with empty transactions
+    // Load new year data from API; if none, create default
+    let yearData = await fetchYearData(year);
+    if (!yearData) {
       const newInputs = { ...state.values, year: String(year) };
       const newDefaults = { ...state.defaults, year: String(year) };
-      saveYearData(createYearData(year, newInputs, newDefaults, []));
-      dispatch({ type: "switchYear", year });
-      setTransactions([]);
+      yearData = createYearData(year, newInputs, newDefaults, []);
+      await saveYearData(yearData);
     }
+
+    dispatch({ type: "hydrate", values: yearData.inputs, defaults: yearData.defaults });
+    setTransactions(yearData.transactions || []);
     setYearsRefreshKey((k) => k + 1);
   };
 
