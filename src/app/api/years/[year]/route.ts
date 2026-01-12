@@ -3,10 +3,11 @@ import { ensureTables, sql } from "@/lib/db";
 
 export async function GET(
   _req: Request,
-  { params }: { params: { year: string } },
+  { params }: { params: Promise<{ year: string }> },
 ) {
+  const { year } = await params;
   await ensureTables();
-  const yearNum = Number(params.year);
+  const yearNum = Number(year);
   if (Number.isNaN(yearNum)) {
     return NextResponse.json({ error: "Invalid year" }, { status: 400 });
   }
@@ -20,10 +21,11 @@ export async function GET(
 
 export async function PUT(
   req: Request,
-  { params }: { params: { year: string } },
+  { params }: { params: Promise<{ year: string }> },
 ) {
+  const { year } = await params;
   await ensureTables();
-  const yearNum = Number(params.year);
+  const yearNum = Number(year);
   if (Number.isNaN(yearNum)) {
     return NextResponse.json({ error: "Invalid year" }, { status: 400 });
   }
@@ -49,10 +51,11 @@ export async function PUT(
 
 export async function DELETE(
   _req: Request,
-  { params }: { params: { year: string } },
+  { params }: { params: Promise<{ year: string }> },
 ) {
+  const { year } = await params;
   await ensureTables();
-  const yearNum = Number(params.year);
+  const yearNum = Number(year);
   if (Number.isNaN(yearNum)) {
     return NextResponse.json({ error: "Invalid year" }, { status: 400 });
   }
