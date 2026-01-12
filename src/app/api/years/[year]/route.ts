@@ -62,14 +62,14 @@ const normalizeTransactionsInput = (value: unknown) => {
           : undefined;
       const rawId = typeof candidate.id === "string" ? candidate.id : "";
       const id = uuidRegex.test(rawId) ? rawId : generateId();
-      return { id, date, amount, description };
+      return { id, date, amount, description: description ?? undefined };
     })
     .filter(
       (transaction): transaction is {
         id: string;
         date: string;
         amount: number;
-        description?: string;
+        description: string | undefined;
       } => Boolean(transaction),
     );
 };
@@ -102,14 +102,14 @@ const normalizeStoredTransactions = (value: unknown) => {
           : undefined;
       const rawId = typeof candidate.id === "string" ? candidate.id : "";
       const id = rawId || generateId();
-      return { id, date, amount, description };
+      return { id, date, amount, description: description ?? undefined };
     })
     .filter(
       (transaction): transaction is {
         id: string;
         date: string;
         amount: number;
-        description?: string;
+        description: string | undefined;
       } => Boolean(transaction),
     );
 };
