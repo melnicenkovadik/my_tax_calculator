@@ -15,16 +15,28 @@ export function YearsOverview({
   onYearSelect,
   onRefresh,
 }: YearsOverviewProps) {
-  const [years, setYears] = useState<number[]>([]);
+  const [yearRows, setYearRows] = useState<Array<{ year: number; data: any | null }>>(
+    [],
+  );
 
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
       try {
-        const list = await fetchYears();
-        if (!cancelled) setYears(list);
+          const list = await fetchYears();
+          const rows = await Promise.all(
+            list.map(async (year) => {
+              try {
+                const data = await fetchYearData(year);
+                return { year, data };
+              } catch {
+                return { year, data: null };
+              }
+            }),
+          );
+          if (!cancelled) setYearRows(rows);
       } catch {
-        if (!cancelled) setYears([]);
+        if (!cancelled) setYearRows([]);
       }
     };
     load();
@@ -33,7 +45,7 @@ export function YearsOverview({
     };
   }, [onRefresh]);
 
-  if (years.length === 0) {
+  if (yearRows.length === 0) {
     return null;
   }
 
@@ -58,21 +70,8 @@ export function YearsOverview({
       </p>
 
       <div className="mt-6 grid gap-3">
-        {years.map((year) => {
-          const [yearData, setYearData] = useState<any | null>(null);
-          useEffect(() => {
-            let cancelled = false;
-            fetchYearData(year)
-              .then((data) => {
-                if (!cancelled) setYearData(data);
-              })
-              .catch(() => {
-                if (!cancelled) setYearData(null);
-              });
-            return () => {
-              cancelled = true;
-            };
-          }, [year]);
+        {yearRows.map(({ year, data }) => {
+          const yearData = data;
           if (!yearData) return null;
 
           const parsed = parseCalculatorInputs(yearData.inputs);
