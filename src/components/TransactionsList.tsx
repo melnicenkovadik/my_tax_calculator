@@ -6,18 +6,14 @@ import type { RevenueTransaction } from "@/lib/tax/types";
 type TransactionsListProps = {
   transactions: RevenueTransaction[];
   onDelete: (id: string) => void;
-  totalRevenue: number;
+  emptyMessage?: string;
 };
 
 export function TransactionsList({
   transactions,
   onDelete,
-  totalRevenue,
+  emptyMessage,
 }: TransactionsListProps) {
-  const sortedTransactions = [...transactions].sort(
-    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
-  );
-
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString("uk-UA", {
@@ -30,54 +26,51 @@ export function TransactionsList({
   if (transactions.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-card-border bg-white/60 p-6 text-center text-sm text-muted">
-        Немає транзакцій. Додайте перший дохід вище.
+        {emptyMessage ?? "Немає транзакцій. Додайте перший дохід вище."}
       </div>
     );
   }
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between rounded-2xl border border-card-border bg-accent-wash px-4 py-3">
-        <span className="text-sm font-semibold text-foreground">
-          Загальний дохід:
-        </span>
-        <span className="text-base font-semibold text-foreground">
-          {formatCurrency(totalRevenue)}
-        </span>
-      </div>
-
-      <div className="space-y-2">
-        {sortedTransactions.map((transaction) => (
-          <div
-            key={transaction.id}
-            className="group flex items-center justify-between rounded-xl border border-card-border bg-white/70 px-4 py-3 transition hover:border-foreground/30"
-          >
-            <div className="flex-1">
-              <div className="flex items-center gap-3">
-                <span className="text-sm font-semibold text-foreground">
-                  {formatDate(transaction.date)}
-                </span>
-                <span className="text-sm font-semibold text-foreground">
-                  {formatCurrency(transaction.amount)}
-                </span>
-              </div>
-              {transaction.description && (
-                <p className="mt-1 text-xs text-muted">
-                  {transaction.description}
-                </p>
-              )}
-            </div>
-            <button
-              type="button"
-              onClick={() => onDelete(transaction.id)}
-              className="ml-4 rounded-full p-1.5 text-xs text-muted opacity-0 transition hover:bg-rose-50 hover:text-rose-600 group-hover:opacity-100"
-              title="Видалити транзакцію"
+    <div className="overflow-x-auto rounded-2xl border border-card-border bg-white/70">
+      <table className="w-full min-w-[640px] text-sm">
+        <thead className="bg-white/80 text-[11px] uppercase tracking-[0.2em] text-muted">
+          <tr>
+            <th className="px-4 py-3 text-left">Дата</th>
+            <th className="px-4 py-3 text-left">Опис</th>
+            <th className="px-4 py-3 text-right">Сума</th>
+            <th className="px-4 py-3"></th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-card-border/60">
+          {transactions.map((transaction) => (
+            <tr
+              key={transaction.id}
+              className="group transition hover:bg-accent-wash/60"
             >
-              ✕
-            </button>
-          </div>
-        ))}
-      </div>
+              <td className="px-4 py-3 font-medium text-foreground">
+                {formatDate(transaction.date)}
+              </td>
+              <td className="px-4 py-3 text-muted">
+                {transaction.description?.trim() || "—"}
+              </td>
+              <td className="px-4 py-3 text-right font-semibold text-foreground">
+                {formatCurrency(transaction.amount)}
+              </td>
+              <td className="px-4 py-3 text-right">
+                <button
+                  type="button"
+                  onClick={() => onDelete(transaction.id)}
+                  className="rounded-full px-2 py-1 text-xs text-muted opacity-70 transition hover:bg-rose-50 hover:text-rose-600 group-hover:opacity-100"
+                  title="Видалити транзакцію"
+                >
+                  ✕
+                </button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }

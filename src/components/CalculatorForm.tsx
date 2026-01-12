@@ -20,6 +20,10 @@ type CalculatorFormProps = {
   canSaveDefaults: boolean;
 };
 
+type CalculatorFormPropsWithModal = CalculatorFormProps & {
+  isInModal?: boolean;
+};
+
 export function CalculatorForm({
   values,
   errors,
@@ -27,19 +31,46 @@ export function CalculatorForm({
   onReset,
   onSaveDefaults,
   canSaveDefaults,
-}: CalculatorFormProps) {
+  isInModal = false,
+}: CalculatorFormPropsWithModal) {
   return (
-    <section className="rounded-3xl border border-card-border bg-card/80 p-6 shadow-[0_20px_60px_-40px_rgba(25,25,25,0.35)] backdrop-blur">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted">
-            Вхідні дані
-          </p>
-          <h2 className="mt-2 font-display text-2xl text-foreground">
-            Ваші припущення
-          </h2>
+    <div className={isInModal ? "" : "rounded-3xl border border-card-border bg-card/80 p-5 shadow-[0_20px_60px_-40px_rgba(25,25,25,0.35)] backdrop-blur"}>
+      {!isInModal && (
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted">
+              Вхідні дані
+            </p>
+            <h2 className="mt-2 font-display text-2xl text-foreground">
+              Ваші припущення
+            </h2>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              className="rounded-full border border-card-border px-4 py-2 text-xs font-semibold text-muted transition hover:border-foreground/30 hover:text-foreground"
+              onClick={onReset}
+            >
+              Скинути
+            </button>
+            <button
+              type="button"
+              className={`rounded-full px-4 py-2 text-xs font-semibold text-white shadow-sm transition ${
+                canSaveDefaults
+                  ? "bg-accent hover:bg-accent-strong"
+                  : "cursor-not-allowed bg-muted/40"
+              }`}
+              disabled={!canSaveDefaults}
+              onClick={onSaveDefaults}
+            >
+              Зберегти за замовчуванням
+            </button>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
+      )}
+
+      {isInModal && (
+        <div className="mb-6 flex items-center justify-end gap-2">
           <button
             type="button"
             className="rounded-full border border-card-border px-4 py-2 text-xs font-semibold text-muted transition hover:border-foreground/30 hover:text-foreground"
@@ -60,9 +91,9 @@ export function CalculatorForm({
             Зберегти за замовчуванням
           </button>
         </div>
-      </div>
+      )}
 
-      <div className="mt-6 grid gap-5">
+      <div className={isInModal ? "grid gap-5" : "mt-6 grid gap-5"}>
         <div>
           <label className="text-sm font-medium text-foreground">
             Податковий рік (РРРР)
@@ -272,6 +303,6 @@ export function CalculatorForm({
           </div>
         ) : null}
       </div>
-    </section>
+    </div>
   );
 }

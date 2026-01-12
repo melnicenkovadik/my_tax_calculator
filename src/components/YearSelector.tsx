@@ -8,7 +8,7 @@ type YearSelectorProps = {
   currentYear: number;
   currentInputs: CalculatorInputValues;
   currentDefaults: CalculatorInputValues;
-  onYearChange: (year: number) => void;
+  onYearChange: (year: number, opts?: { forceCreate?: boolean }) => void;
 };
 
 export function YearSelector({
@@ -35,7 +35,7 @@ export function YearSelector({
 
     // Note: Saving current year is handled by parent component
     // Just trigger the year change
-    onYearChange(yearNum);
+    onYearChange(yearNum, { forceCreate: true });
 
     fetchYears()
       .then(setYears)
@@ -65,7 +65,7 @@ export function YearSelector({
           ) : (
             years.map((year) => (
               <option key={year} value={year}>
-                {year}
+                {year} {year === currentYear ? "•" : ""}
               </option>
             ))
           )}

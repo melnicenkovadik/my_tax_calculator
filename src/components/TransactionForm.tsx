@@ -22,7 +22,10 @@ export function TransactionForm({ onAdd }: TransactionFormProps) {
     }
 
     const transaction: RevenueTransaction = {
-      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      id:
+        typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+          ? crypto.randomUUID()
+          : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
       date,
       amount: amountNum,
       description: description.trim() || undefined,
@@ -34,57 +37,50 @@ export function TransactionForm({ onAdd }: TransactionFormProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-3">
-      <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
-        <div>
-          <label className="mb-1 block text-xs font-medium text-foreground">
-            Дата
-          </label>
-          <input
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            className="w-full rounded-xl border border-card-border bg-white/80 px-3 py-2 text-sm shadow-sm transition focus:outline-none focus:ring-2 focus:ring-accent/30"
-            required
-          />
-        </div>
-        <div>
-          <label className="mb-1 block text-xs font-medium text-foreground">
-            Сума (EUR)
-          </label>
-          <input
-            type="number"
-            inputMode="decimal"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            min="0"
-            step="0.01"
-            className="w-full rounded-xl border border-card-border bg-white/80 px-3 py-2 text-sm shadow-sm transition focus:outline-none focus:ring-2 focus:ring-accent/30"
-            placeholder="0.00"
-            required
-          />
-        </div>
-        <div className="flex items-end">
-          <button
-            type="submit"
-            className="w-full rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-accent-strong"
-          >
-            Додати
-          </button>
-        </div>
-      </div>
-      <div>
-        <label className="mb-1 block text-xs font-medium text-foreground">
-          Опис (необов'язково)
-        </label>
+    <form
+      onSubmit={handleSubmit}
+      className="grid gap-3 sm:grid-cols-[minmax(0,0.9fr)_minmax(0,0.7fr)_minmax(0,1.4fr)_auto] sm:items-end"
+    >
+      <label className="text-xs text-muted">
+        Дата
+        <input
+          type="date"
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
+          className="mt-1 w-full rounded-xl border border-card-border bg-white/80 px-3 py-2 text-sm shadow-sm transition focus:outline-none focus:ring-2 focus:ring-accent/30"
+          required
+        />
+      </label>
+      <label className="text-xs text-muted">
+        Сума (EUR)
+        <input
+          type="number"
+          inputMode="decimal"
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          min="0"
+          step="0.01"
+          className="mt-1 w-full rounded-xl border border-card-border bg-white/80 px-3 py-2 text-sm shadow-sm transition focus:outline-none focus:ring-2 focus:ring-accent/30"
+          placeholder="0.00"
+          required
+        />
+      </label>
+      <label className="text-xs text-muted">
+        Опис (необов'язково)
         <input
           type="text"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          className="w-full rounded-xl border border-card-border bg-white/80 px-3 py-2 text-sm shadow-sm transition focus:outline-none focus:ring-2 focus:ring-accent/30"
+          className="mt-1 w-full rounded-xl border border-card-border bg-white/80 px-3 py-2 text-sm shadow-sm transition focus:outline-none focus:ring-2 focus:ring-accent/30"
           placeholder="Наприклад: Оплата за проект"
         />
-      </div>
+      </label>
+      <button
+        type="submit"
+        className="w-full rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-accent-strong"
+      >
+        Додати
+      </button>
     </form>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useReducer, useState } from "react";
+import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { CalculatorForm } from "@/components/CalculatorForm";
 import { ResultsPanel } from "@/components/ResultsPanel";
@@ -236,6 +236,7 @@ export function HomeClient({ initialYear, initialData }: HomeClientProps) {
     initialData?.transactions ?? [],
   );
   const [isCalculatorModalOpen, setIsCalculatorModalOpen] = useState(false);
+  const hasPersistedOnce = useRef(false);
 
   // Sync URL with year changes
   useEffect(() => {
@@ -279,6 +280,10 @@ export function HomeClient({ initialYear, initialData }: HomeClientProps) {
 
   useEffect(() => {
     if (!state.hydrated) return;
+    if (!hasPersistedOnce.current) {
+      hasPersistedOnce.current = true;
+      return; // Skip first run on mount to avoid overwriting freshly loaded data
+    }
     const yearNum = parseInt(state.values.year, 10);
     if (!isNaN(yearNum)) {
       saveYearData(createYearData(yearNum, state.values, state.defaults, transactions));
@@ -325,7 +330,7 @@ export function HomeClient({ initialYear, initialData }: HomeClientProps) {
     window.setTimeout(() => setCopyStatus(null), 2000);
   };
 
-  const handleYearChange = async (year: number) => {
+  const handleYearChange = async (year: number, opts?: { forceCreate?: boolean }) => {
     // Save current year data before switching
     const currentYearNum = parseInt(state.values.year, 10);
     if (!isNaN(currentYearNum)) {
@@ -339,9 +344,13 @@ export function HomeClient({ initialYear, initialData }: HomeClientProps) {
     params.set("year", String(year));
     router.push(`/?${params.toString()}`, { scroll: false });
 
-    // Load new year data from API; if none, create default
+    // Load new year data from API; only create if explicitly requested
     let yearData = await fetchYearData(year);
     if (!yearData) {
+      if (!opts?.forceCreate) {
+        console.error("Year data not found and forceCreate not set; aborting change to avoid overwriting existing data.");
+        return;
+      }
       const newInputs = { ...state.values, year: String(year) };
       const newDefaults = { ...state.defaults, year: String(year) };
       yearData = createYearData(year, newInputs, newDefaults, []);

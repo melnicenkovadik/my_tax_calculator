@@ -18,6 +18,7 @@ export function YearsOverview({
   const [yearRows, setYearRows] = useState<Array<{ year: number; data: any | null }>>(
     [],
   );
+  const [isCollapsed, setIsCollapsed] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
@@ -58,18 +59,46 @@ export function YearsOverview({
   };
 
   return (
-    <section className="rounded-3xl border border-card-border bg-card/80 p-6 shadow-[0_20px_60px_-40px_rgba(25,25,25,0.35)] backdrop-blur">
-      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted">
-        Облік
-      </p>
-      <h2 className="mt-2 font-display text-2xl text-foreground">
-        Всі роки
-      </h2>
-      <p className="mt-2 text-sm text-muted">
-        Огляд даних за всі роки. Натисніть на рік, щоб переглянути деталі.
-      </p>
+    <section className="rounded-3xl border border-card-border bg-card/80 p-5 shadow-[0_20px_60px_-40px_rgba(25,25,25,0.35)] backdrop-blur">
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex-1">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted">
+            Облік
+          </p>
+          <h2 className="mt-2 font-display text-2xl text-foreground">
+            Всі роки
+          </h2>
+          <p className="mt-2 text-sm text-muted">
+            Огляд даних за всі роки. Натисніть на рік, щоб переглянути деталі.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          className="rounded-full border border-card-border p-2 text-muted transition hover:border-foreground/30 hover:text-foreground"
+          aria-label={isCollapsed ? "Розгорнути" : "Згорнути"}
+        >
+          <svg
+            className={`h-5 w-5 transition-transform ${isCollapsed ? "" : "rotate-180"}`}
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M19 9l-7 7-7-7"
+            />
+          </svg>
+        </button>
+      </div>
 
-      <div className="mt-6 grid gap-3">
+      <div
+        className={`mt-6 grid gap-3 transition-all duration-300 ${
+          isCollapsed ? "max-h-0 overflow-hidden opacity-0" : "max-h-[2000px] opacity-100"
+        }`}
+      >
         {yearRows.map(({ year, data }) => {
           const yearData = data;
           if (!yearData) return null;
