@@ -13,7 +13,7 @@ export async function DELETE(
 
     // Get the transaction to find its year
     const { rows } = await sql`
-      SELECT year FROM transactions WHERE id = ${id}::uuid LIMIT 1
+      SELECT year FROM transactions WHERE id = ${id} LIMIT 1
     `;
 
     if (!rows.length) {
@@ -23,7 +23,7 @@ export async function DELETE(
     const year = rows[0].year;
 
     // Delete the transaction
-    await sql`DELETE FROM transactions WHERE id = ${id}::uuid`;
+    await sql`DELETE FROM transactions WHERE id = ${id}`;
 
     // Also remove from JSON field in years table for backward compatibility
     const { rows: yearRows } = await sql`
