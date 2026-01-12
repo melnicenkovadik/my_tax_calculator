@@ -18,11 +18,7 @@ const numberField = (
   label: string,
   options: { min?: number; max?: number } = {},
 ) => {
-  let base = z
-    .number({
-      invalid_type_error: `${label} має бути числом`,
-    })
-    .finite(`${label} має бути числом`);
+  let base = z.number().finite(`${label} має бути числом`);
 
   if (typeof options.min === "number") {
     base = base.min(options.min, `${label} має бути >= ${options.min}`);
