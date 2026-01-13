@@ -1,3 +1,4 @@
+"use client";
 import type { Metadata } from "next";
 import { Fraunces, Manrope } from "next/font/google";
 import "./globals.css";
@@ -12,11 +13,6 @@ const displayFont = Fraunces({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: "Калькулятор податків Italian Forfettario",
-  description:
-    "Персональний калькулятор для розрахунку оподатковуваної бази, INPS та imposta sostitutiva за режимом forfettario.",
-};
 
 export default function RootLayout({
   children,

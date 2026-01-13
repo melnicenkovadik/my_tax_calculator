@@ -65,7 +65,13 @@ const normalizeStoredTransactions = (value: unknown): RevenueTransaction[] => {
             const value = char === "x" ? rand : (rand & 0x3) | 0x8;
             return value.toString(16);
           }));
-      return { id, date, amount, description };
+      const tx: RevenueTransaction = {
+        id,
+        date,
+        amount,
+        ...(description !== undefined ? { description } : {}),
+      };
+      return tx;
     })
     .filter(
       (transaction): transaction is RevenueTransaction => Boolean(transaction),
@@ -116,16 +122,18 @@ export async function fetchYearDataServer(
         const date = normalizeDateString(transaction.date);
         const amount = normalizeAmount(transaction.amount);
         if (!date || amount === null) return null;
-        return {
+        const description =
+          typeof transaction.description === "string" &&
+          transaction.description.trim()
+            ? transaction.description.trim()
+            : undefined;
+        const tx: RevenueTransaction = {
           id: String(transaction.id),
           date,
           amount,
-          description:
-            typeof transaction.description === "string" &&
-            transaction.description.trim()
-              ? transaction.description.trim()
-              : undefined,
+          ...(description !== undefined ? { description } : {}),
         };
+        return tx;
       })
       .filter(
         (transaction): transaction is RevenueTransaction => Boolean(transaction),

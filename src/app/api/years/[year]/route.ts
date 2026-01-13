@@ -69,7 +69,7 @@ const normalizeTransactionsInput = (value: unknown) => {
         id: string;
         date: string;
         amount: number;
-        description?: string;
+        description: string | undefined;
       } => Boolean(transaction),
     );
 };
@@ -109,7 +109,7 @@ const normalizeStoredTransactions = (value: unknown) => {
         id: string;
         date: string;
         amount: number;
-        description?: string;
+        description: string | undefined;
       } => Boolean(transaction),
     );
 };
@@ -185,7 +185,7 @@ export async function GET(
           id: string;
           date: string;
           amount: number;
-          description?: string;
+          description: string | undefined;
         } => Boolean(transaction),
       );
     const storedTransactions = normalizeStoredTransactions(row.transactions);

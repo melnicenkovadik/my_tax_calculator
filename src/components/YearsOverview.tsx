@@ -107,7 +107,10 @@ export function YearsOverview({
           if (!parsed.parsed) return null;
 
           const transactions = yearData.transactions || [];
-          const totalRevenue = transactions.reduce((sum, t) => sum + t.amount, 0);
+          const totalRevenue = transactions.reduce(
+            (sum: number, t: { amount: number }) => sum + t.amount,
+            0,
+          );
           const inputsWithRevenue = { ...parsed.parsed, revenue: totalRevenue || parsed.parsed.revenue };
           const results = computeTotals(inputsWithRevenue);
           const lastUpdated = new Date(yearData.lastUpdated);
