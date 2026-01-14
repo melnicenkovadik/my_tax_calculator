@@ -246,6 +246,7 @@ export function HomeClient({ initialYear, initialData }: HomeClientProps) {
   const [isTemplatesModalOpen, setIsTemplatesModalOpen] = useState(false);
   const [templateToApply, setTemplateToApply] = useState<TransactionTemplate | null>(null);
   const hasPersistedOnce = useRef(false);
+  const pendingYearChange = useRef<{ year: number; forceCreate?: boolean } | null>(null);
 
   // Sync URL with year changes
   useEffect(() => {
@@ -271,11 +272,22 @@ export function HomeClient({ initialYear, initialData }: HomeClientProps) {
     let cancelled = false;
     const load = async () => {
       try {
-        const yearData = await fetchYearData(yearNum);
+        let yearData = await fetchYearData(yearNum);
+        const pending = pendingYearChange.current;
+        const shouldForceCreate = pending?.year === yearNum && pending.forceCreate;
+        if (!yearData && shouldForceCreate) {
+          const newInputs = { ...state.values, year: String(yearNum) };
+          const newDefaults = { ...state.defaults, year: String(yearNum) };
+          yearData = createYearData(yearNum, newInputs, newDefaults, []);
+          await saveYearData(yearData);
+        }
         if (cancelled) return;
         if (yearData) {
           dispatch({ type: "hydrate", values: yearData.inputs, defaults: yearData.defaults });
           setTransactions(Array.isArray(yearData.transactions) ? yearData.transactions : []);
+        }
+        if (pending?.year === yearNum) {
+          pendingYearChange.current = null;
         }
       } catch {
         if (cancelled) return;
@@ -351,23 +363,8 @@ export function HomeClient({ initialYear, initialData }: HomeClientProps) {
     // Update URL
     const params = new URLSearchParams(searchParams.toString());
     params.set("year", String(year));
-    router.push(`/?${params.toString()}`, { scroll: false });
-
-    // Load new year data from API; only create if explicitly requested
-    let yearData = await fetchYearData(year);
-    if (!yearData) {
-      if (!opts?.forceCreate) {
-        console.error("Year data not found and forceCreate not set; aborting change to avoid overwriting existing data.");
-        return;
-      }
-      const newInputs = { ...state.values, year: String(year) };
-      const newDefaults = { ...state.defaults, year: String(year) };
-      yearData = createYearData(year, newInputs, newDefaults, []);
-      await saveYearData(yearData);
-    }
-
-    dispatch({ type: "hydrate", values: yearData.inputs, defaults: yearData.defaults });
-    setTransactions(Array.isArray(yearData.transactions) ? yearData.transactions : []);
+    pendingYearChange.current = { year, forceCreate: opts?.forceCreate };
+    router.replace(`/?${params.toString()}`, { scroll: false });
     setYearsRefreshKey((k) => k + 1);
   };
 
