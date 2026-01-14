@@ -1,13 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { RevenueTransaction } from "@/lib/tax/types";
+import { fetchTemplates } from "@/lib/storage/templates";
+import type { RevenueTransaction, TransactionAttachment, TransactionTemplate } from "@/lib/tax/types";
 
 type TransactionFormProps = {
   onSubmit: (transaction: RevenueTransaction) => void;
   editing?: RevenueTransaction | null;
   onCancelEdit?: () => void;
   onUploadAttachment?: (transactionId: string, file: File) => Promise<void> | void;
+  onDeleteAttachment?: (attachmentId: string, transactionId: string) => Promise<void> | void;
+  templateToApply?: TransactionTemplate | null;
+  onTemplateApplied?: () => void;
 };
 
 export function TransactionForm({
@@ -15,6 +19,9 @@ export function TransactionForm({
   editing = null,
   onCancelEdit,
   onUploadAttachment,
+  onDeleteAttachment,
+  templateToApply,
+  onTemplateApplied,
 }: TransactionFormProps) {
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [amount, setAmount] = useState("");
@@ -24,6 +31,9 @@ export function TransactionForm({
   const [notes, setNotes] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [uploadingFiles, setUploadingFiles] = useState(false);
+  const [templates, setTemplates] = useState<TransactionTemplate[]>([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
+  const [loadingTemplates, setLoadingTemplates] = useState(false);
 
   useEffect(() => {
     if (editing) {
@@ -33,6 +43,7 @@ export function TransactionForm({
       setSender(editing.sender ?? "");
       setBillTo(editing.billTo ?? "");
       setNotes(editing.notes ?? "");
+      setSelectedTemplateId("");
     } else {
       setDate(new Date().toISOString().split("T")[0]);
       setAmount("");
@@ -40,8 +51,52 @@ export function TransactionForm({
       setSender("");
       setBillTo("");
       setNotes("");
+      setSelectedTemplateId("");
     }
   }, [editing]);
+
+  useEffect(() => {
+    if (templateToApply && !editing) {
+      setSender(templateToApply.sender ?? "");
+      setBillTo(templateToApply.billTo ?? "");
+      setNotes(templateToApply.notes ?? "");
+      setSelectedTemplateId(templateToApply.id);
+      if (onTemplateApplied) {
+        onTemplateApplied();
+      }
+    }
+  }, [templateToApply, editing, onTemplateApplied]);
+
+  useEffect(() => {
+    const loadTemplates = async () => {
+      try {
+        setLoadingTemplates(true);
+        const data = await fetchTemplates();
+        setTemplates(data);
+      } catch (error) {
+        console.error("Failed to load templates", error);
+      } finally {
+        setLoadingTemplates(false);
+      }
+    };
+    loadTemplates();
+  }, []);
+
+  const handleTemplateSelect = (templateId: string) => {
+    setSelectedTemplateId(templateId);
+    if (templateId) {
+      const template = templates.find((t) => t.id === templateId);
+      if (template) {
+        setSender(template.sender ?? "");
+        setBillTo(template.billTo ?? "");
+        setNotes(template.notes ?? "");
+      }
+    } else {
+      setSender("");
+      setBillTo("");
+      setNotes("");
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -145,6 +200,29 @@ export function TransactionForm({
           placeholder="Наприклад: Оплата за проект"
         />
       </label>
+      <div className="text-xs text-muted">
+        <label className="block mb-2">
+          Заповнити з шаблону (необов'язково)
+        </label>
+        <select
+          value={selectedTemplateId}
+          onChange={(e) => handleTemplateSelect(e.target.value)}
+          disabled={loadingTemplates}
+          className="w-full rounded-xl border border-card-border bg-white/80 px-3 py-2 text-sm shadow-sm transition focus:outline-none focus:ring-2 focus:ring-accent/30 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <option value="">-- Оберіть шаблон --</option>
+          {templates.map((template) => (
+            <option key={template.id} value={template.id}>
+              {template.name}
+            </option>
+          ))}
+        </select>
+        {templates.length === 0 && !loadingTemplates && (
+          <p className="mt-1 text-[10px] text-muted/70">
+            Немає збережених шаблонів. Створіть їх у меню "Templates"
+          </p>
+        )}
+      </div>
       <label className="text-xs text-muted">
         Відправник / клієнт (необов'язково)
         <input
@@ -188,6 +266,57 @@ IBAN: LT407300010124087168`}
         <div className="text-xs text-muted">
           <label className="block mb-2">Вкладення (необов'язково)</label>
           <div className="space-y-2">
+            {editing?.attachments && editing.attachments.length > 0 && (
+              <div className="space-y-1 mb-2">
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-muted mb-1">
+                  Існуючі файли:
+                </div>
+                {editing.attachments.map((att) => {
+                  const isPdf = att.contentType === "application/pdf";
+                  const isImage = att.contentType.startsWith("image/");
+                  const fileSize = att.size < 1024
+                    ? `${att.size} B`
+                    : att.size < 1024 * 1024
+                      ? `${(att.size / 1024).toFixed(1)} KB`
+                      : `${(att.size / (1024 * 1024)).toFixed(2)} MB`;
+
+                  return (
+                    <div
+                      key={att.id}
+                      className="flex items-center justify-between rounded-lg border border-card-border/60 bg-white/80 px-3 py-2 text-xs"
+                    >
+                      <a
+                        href={att.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center gap-2 flex-1 min-w-0 text-foreground no-underline transition hover:text-accent"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {isPdf ? (
+                          <span className="text-xs" aria-hidden="true">📄</span>
+                        ) : isImage ? (
+                          <span className="text-xs" aria-hidden="true">🖼️</span>
+                        ) : (
+                          <span className="text-xs" aria-hidden="true">📎</span>
+                        )}
+                        <span className="truncate flex-1">{att.originalName}</span>
+                        <span className="text-[10px] text-muted shrink-0">{fileSize}</span>
+                      </a>
+                      {onDeleteAttachment && editing?.id && (
+                        <button
+                          type="button"
+                          onClick={() => onDeleteAttachment(att.id, editing.id)}
+                          className="ml-2 rounded px-1.5 py-0.5 text-xs text-muted transition hover:bg-rose-50 hover:text-rose-600 shrink-0"
+                          aria-label={`Видалити ${att.originalName}`}
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
             <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-card-border/60 bg-white/50 px-3 py-2 text-sm font-medium text-accent transition hover:border-accent/40 hover:bg-accent-wash/30">
               <input
                 type="file"
@@ -202,6 +331,9 @@ IBAN: LT407300010124087168`}
             </label>
             {files.length > 0 && (
               <div className="space-y-1">
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-muted mb-1">
+                  Нові файли:
+                </div>
                 {files.map((file, index) => (
                   <div
                     key={index}

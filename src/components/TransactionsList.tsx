@@ -41,6 +41,7 @@ function CopyButton({ text, label }: { text: string; label: string }) {
 type TransactionsListProps = {
   transactions: RevenueTransaction[];
   onDelete: (id: string) => void;
+  onBulkDelete?: (ids: string[]) => Promise<void> | void;
   onEdit: (transaction: RevenueTransaction) => void;
   onUploadAttachment?: (transactionId: string, file: File) => void;
   onDeleteAttachment?: (attachmentId: string, transactionId: string) => void;
@@ -48,14 +49,43 @@ type TransactionsListProps = {
 };
 
 function EmailModal({
-  transaction,
+  transactions,
   onClose,
 }: {
-  transaction: RevenueTransaction;
+  transactions: RevenueTransaction[];
   onClose: () => void;
 }) {
   const [copiedField, setCopiedField] = useState<string | null>(null);
-  const { subject, body } = generateEmailContent(transaction);
+  
+  const emailContent = transactions.length === 1
+    ? generateEmailContent(transactions[0])
+    : (() => {
+        const totalAmount = transactions.reduce((sum, t) => sum + t.amount, 0);
+        const dates = transactions.map((t) => {
+          const date = new Date(t.date);
+          return date.toLocaleDateString("it-IT", {
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+          });
+        });
+        const dateRange = dates.length > 0
+          ? dates.length === 1
+            ? dates[0]
+            : `${dates[dates.length - 1]} - ${dates[0]}`
+          : "";
+        
+        const allBodies = transactions.map((t) => {
+          const { subject, body } = generateEmailContent(t);
+          return `--- ${subject} ---\n${body}`;
+        }).join("\n\n");
+        return {
+          subject: `${transactions.length} transazioni · Totale: ${formatCurrency(totalAmount)} · ${dateRange}`,
+          body: allBodies,
+        };
+      })();
+  
+  const { subject, body } = emailContent;
   const fullEmail = `To: martina@studiobollani.it\nFrom: melnicenkovadik@gmail.com\nSubject: ${subject}\n\n${body}`;
 
   const handleCopy = async (text: string, field: string) => {
@@ -219,15 +249,95 @@ function generateEmailContent(transaction: RevenueTransaction): { subject: strin
   };
 }
 
+function BulkDeleteModal({
+  transactions,
+  onConfirm,
+  onCancel,
+  isLoading = false,
+}: {
+  transactions: RevenueTransaction[];
+  onConfirm: () => void;
+  onCancel: () => void;
+  isLoading?: boolean;
+}) {
+  if (typeof window === "undefined") return null;
+
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-8">
+      <div
+        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+        onClick={onCancel}
+      />
+      <div className="relative z-10 w-full max-w-md rounded-2xl border border-card-border bg-card/95 p-6 shadow-2xl">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-foreground">
+            Видалити транзакції?
+          </h3>
+          <button
+            type="button"
+            onClick={onCancel}
+            className="rounded-full p-1 text-muted transition hover:bg-white/50 hover:text-foreground"
+            aria-label="Закрити"
+          >
+            ✕
+          </button>
+        </div>
+        <p className="mb-4 text-sm text-muted">
+          Буде видалено {transactions.length} транзакцій. Цю дію не можна скасувати.
+        </p>
+        <div className="mb-6 max-h-64 overflow-y-auto rounded-xl border border-card-border bg-white/70 p-3 space-y-2">
+          {transactions.map((transaction) => (
+            <div
+              key={transaction.id}
+              className="flex items-center justify-between rounded-lg border border-card-border/60 bg-white/80 px-3 py-2 text-xs"
+            >
+              <div className="flex-1 min-w-0">
+                <div className="font-semibold text-foreground">
+                  {formatCurrency(transaction.amount)} · {transaction.date}
+                </div>
+                <div className="text-muted truncate">
+                  {transaction.description?.trim() || "Без опису"}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="flex justify-end gap-3">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="rounded-full border border-card-border px-4 py-2 text-sm font-semibold text-muted transition hover:border-foreground/30 hover:text-foreground"
+          >
+            Скасувати
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={isLoading}
+            className="rounded-full bg-rose-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {isLoading ? "Видалення..." : `Видалити (${transactions.length})`}
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
 export function TransactionsList({
   transactions,
   onDelete,
+  onBulkDelete,
   onEdit,
   onUploadAttachment,
   onDeleteAttachment,
   emptyMessage,
 }: TransactionsListProps) {
-  const [emailModalTransaction, setEmailModalTransaction] = useState<RevenueTransaction | null>(null);
+  const [emailModalTransactions, setEmailModalTransactions] = useState<RevenueTransaction[] | null>(null);
+  const [bulkDeleteTransactions, setBulkDeleteTransactions] = useState<RevenueTransaction[] | null>(null);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -246,12 +356,104 @@ export function TransactionsList({
     );
   }
 
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === transactions.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(transactions.map((t) => t.id)));
+    }
+  };
+
+  const handleBulkDelete = () => {
+    if (selectedIds.size === 0) return;
+    const transactionsToDelete = transactions.filter((t) => selectedIds.has(t.id));
+    setBulkDeleteTransactions(transactionsToDelete);
+  };
+
+  const confirmBulkDelete = async () => {
+    if (!bulkDeleteTransactions || isBulkDeleting) return;
+    setIsBulkDeleting(true);
+    const idsToDelete = bulkDeleteTransactions.map((t) => t.id);
+    try {
+      if (onBulkDelete) {
+        await onBulkDelete(idsToDelete);
+      } else {
+        await Promise.all(idsToDelete.map((id) => onDelete(id)));
+      }
+    } finally {
+      setIsBulkDeleting(false);
+      setSelectedIds(new Set());
+      setBulkDeleteTransactions(null);
+    }
+  };
+
+  const handleBulkEmail = () => {
+    if (selectedIds.size === 0) return;
+    const selectedTransactions = transactions.filter((t) => selectedIds.has(t.id));
+    if (selectedTransactions.length > 0) {
+      setEmailModalTransactions(selectedTransactions);
+    }
+  };
+
   return (
     <div className="overflow-x-auto overflow-y-visible rounded-2xl border border-card-border bg-white/70">
+      {selectedIds.size > 0 && (
+        <div className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-card-border bg-white/95 px-4 py-3 backdrop-blur-sm">
+          <span className="text-sm font-medium text-foreground">
+            Вибрано: {selectedIds.size}
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleBulkEmail}
+              className="rounded-lg border border-card-border bg-white/80 px-3 py-1.5 text-xs font-medium text-muted transition hover:border-green-300 hover:bg-green-50 hover:text-green-700"
+            >
+              ✉ Email ({selectedIds.size})
+            </button>
+            <button
+              type="button"
+              onClick={handleBulkDelete}
+              className="rounded-lg border border-card-border bg-white/80 px-3 py-1.5 text-xs font-medium text-muted transition hover:border-rose-300 hover:bg-rose-50 hover:text-rose-600"
+            >
+              ✕ Видалити ({selectedIds.size})
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedIds(new Set())}
+              className="rounded-lg border border-card-border bg-white/80 px-3 py-1.5 text-xs font-medium text-muted transition hover:border-foreground/30 hover:text-foreground"
+            >
+              Скасувати
+            </button>
+          </div>
+        </div>
+      )}
       <div className="min-h-[400px] max-h-[600px] overflow-y-auto">
         <table className="w-full min-w-[1200px] text-sm">
           <thead className="bg-white/80 text-[11px] uppercase tracking-[0.2em] text-muted sticky top-0 z-10">
             <tr>
+              <th className="px-4 py-3 w-14">
+                <label className="flex cursor-pointer items-center justify-center">
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.size === transactions.length && transactions.length > 0}
+                    onChange={toggleSelectAll}
+                    className="h-5 w-5 cursor-pointer rounded border-card-border text-accent focus:ring-2 focus:ring-accent/30"
+                    aria-label="Вибрати всі"
+                  />
+                </label>
+              </th>
               <th className="px-4 py-3"></th>
               <th className="px-4 py-3 text-left">Дата</th>
               <th className="px-4 py-3 text-left max-w-[280px]">Опис</th>
@@ -266,36 +468,32 @@ export function TransactionsList({
           {transactions.map((transaction) => (
             <tr
               key={transaction.id}
-              className="group transition hover:bg-accent-wash/60"
+              className={`group transition hover:bg-accent-wash/60 ${
+                selectedIds.has(transaction.id) ? "bg-accent-wash/40" : ""
+              }`}
             >
-              <td className="px-2 py-3 text-right">
-                <button
-                  type="button"
-                  onClick={() => onEdit(transaction)}
-                  className="mr-1 rounded-full p-0.5 text-base text-muted transition hover:bg-blue-50 hover:text-blue-700"
-                  title="Редагувати транзакцію"
-                >
-                  ✎
-                </button>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setEmailModalTransaction(transaction);
-                  }}
-                  className="mr-1 rounded-full p-0.5 text-base text-muted transition hover:bg-green-50 hover:text-green-700"
-                  title="Показати email для комерціаліста"
-                >
-                  ✉
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onDelete(transaction.id)}
-                  className="rounded-full p-0.5 text-base text-muted transition hover:bg-rose-50 hover:text-rose-600"
-                  title="Видалити транзакцію"
-                >
-                  ✕
-                </button>
+              <td className="px-4 py-3">
+                <label className="flex cursor-pointer items-center justify-center" onClick={(e) => e.stopPropagation()}>
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.has(transaction.id)}
+                    onChange={() => toggleSelect(transaction.id)}
+                    className="h-5 w-5 cursor-pointer rounded border-card-border text-accent focus:ring-2 focus:ring-accent/30"
+                    aria-label={`Вибрати транзакцію ${transaction.date}`}
+                  />
+                </label>
+              </td>
+              <td className="px-2 py-3">
+                <div className="flex items-center justify-end">
+                  <button
+                    type="button"
+                    onClick={() => onEdit(transaction)}
+                    className="rounded-lg border border-card-border bg-white/80 px-3 py-1.5 text-xs font-medium text-muted transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 shadow-sm"
+                    title="Редагувати транзакцію"
+                  >
+                    ✎ 
+                  </button>
+                </div>
               </td>
               <td className="px-4 py-3 font-medium text-foreground">
                 {formatDate(transaction.date)}
@@ -406,7 +604,7 @@ export function TransactionsList({
                                   e.stopPropagation();
                                   onDeleteAttachment(att.id, transaction.id);
                                 }}
-                                className="ml-0.5 rounded px-1 py-0.5 text-[10px] text-muted opacity-0 transition hover:bg-rose-50 hover:text-rose-600 group-hover/att:opacity-100"
+                                className="ml-0.5 rounded px-1 py-0.5 text-[10px] text-muted transition hover:bg-rose-50 hover:text-rose-600"
                                 aria-label={`Видалити ${att.originalName}`}
                                 title="Видалити файл"
                               >
@@ -446,10 +644,18 @@ export function TransactionsList({
         </tbody>
         </table>
       </div>
-      {emailModalTransaction && (
+      {emailModalTransactions && emailModalTransactions.length > 0 && (
         <EmailModal
-          transaction={emailModalTransaction}
-          onClose={() => setEmailModalTransaction(null)}
+          transactions={emailModalTransactions}
+          onClose={() => setEmailModalTransactions(null)}
+        />
+      )}
+      {bulkDeleteTransactions && bulkDeleteTransactions.length > 0 && (
+        <BulkDeleteModal
+          transactions={bulkDeleteTransactions}
+          onConfirm={confirmBulkDelete}
+          onCancel={() => setBulkDeleteTransactions(null)}
+          isLoading={isBulkDeleting}
         />
       )}
     </div>

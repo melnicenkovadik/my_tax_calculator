@@ -100,6 +100,21 @@ export async function ensureTables() {
   await sql`
     CREATE INDEX IF NOT EXISTS transaction_attachments_tx_idx ON transaction_attachments (transaction_id);
   `;
+
+  // Templates table
+  await sql`
+    CREATE TABLE IF NOT EXISTS transaction_templates (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      sender TEXT,
+      bill_to TEXT,
+      notes TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+  `;
+  await sql`
+    CREATE INDEX IF NOT EXISTS transaction_templates_created_at_idx ON transaction_templates (created_at DESC);
+  `;
 }
 
 export { sql };

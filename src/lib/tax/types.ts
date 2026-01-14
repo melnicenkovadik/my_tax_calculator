@@ -86,3 +86,12 @@ export type TransactionAttachment = {
   size: number;
   createdAt: string;
 };
+
+export type TransactionTemplate = {
+  id: string;
+  name: string;
+  sender?: string;
+  billTo?: string;
+  notes?: string;
+  createdAt: string;
+};

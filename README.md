@@ -30,6 +30,8 @@ Single-user web app to estimate Regime Forfettario taxable base, INPS, imposta s
    - `POSTGRES_URL` - Same as DATABASE_URL
    - `BLOB_READ_WRITE_TOKEN` - Vercel Blob token for file storage
      - Get it from: https://vercel.com/dashboard/stores
+   - `APP_PASSWORD` - Password for accessing the app (set a strong password)
+   - `AUTH_TOKEN` - Internal auth token (can be any random string, used for session cookies)
 
 3. **Database migrations:**
    
@@ -44,7 +46,7 @@ Single-user web app to estimate Regime Forfettario taxable base, INPS, imposta s
 npm run dev
 ```
 
-Open `http://localhost:3000`.
+Open `http://localhost:3000`. You will be redirected to `/login` if not authenticated. Enter the password set in `APP_PASSWORD` environment variable. The session is stored in cookies for 30 days.
 
 ## Run tests
 

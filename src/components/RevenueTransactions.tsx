@@ -1,11 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { TransactionForm } from "./TransactionForm";
 import { TransactionsList } from "./TransactionsList";
 import { formatCurrency } from "@/lib/format/currency";
-import type { RevenueTransaction } from "@/lib/tax/types";
+import type { RevenueTransaction, TransactionTemplate } from "@/lib/tax/types";
 
 const monthOptions = [
   { value: "all", label: "Всі місяці" },
@@ -29,8 +29,11 @@ type RevenueTransactionsProps = {
   onAddTransaction: (transaction: RevenueTransaction) => Promise<void> | void;
   onUpdateTransaction: (transaction: RevenueTransaction) => Promise<void> | void;
   onDeleteTransaction: (id: string) => Promise<void> | void;
+  onBulkDeleteTransactions?: (ids: string[]) => Promise<void> | void;
   onUploadAttachment?: (transactionId: string, file: File) => Promise<void> | void;
   onDeleteAttachment?: (attachmentId: string, transactionId: string) => Promise<void> | void;
+  templateToApply?: TransactionTemplate | null;
+  onTemplateApplied?: () => void;
 };
 
 export function RevenueTransactions({
@@ -39,8 +42,11 @@ export function RevenueTransactions({
   onAddTransaction,
   onUpdateTransaction,
   onDeleteTransaction,
+  onBulkDeleteTransactions,
   onUploadAttachment,
   onDeleteAttachment,
+  templateToApply,
+  onTemplateApplied,
 }: RevenueTransactionsProps) {
   const [query, setQuery] = useState("");
   const [monthFilter, setMonthFilter] = useState("all");
@@ -139,6 +145,19 @@ export function RevenueTransactions({
     setIsModalOpen(false);
     setEditing(null);
   };
+
+  useEffect(() => {
+    if (templateToApply && !isModalOpen) {
+      setIsModalOpen(true);
+      setEditing(null);
+    }
+  }, [templateToApply, isModalOpen]);
+
+  useEffect(() => {
+    if (!isModalOpen && templateToApply && onTemplateApplied) {
+      onTemplateApplied();
+    }
+  }, [isModalOpen, templateToApply, onTemplateApplied]);
 
   return (
     <section className="rounded-3xl border border-card-border bg-card/80 p-5 shadow-[0_20px_60px_-40px_rgba(25,25,25,0.35)] backdrop-blur">
@@ -248,6 +267,7 @@ export function RevenueTransactions({
         <TransactionsList
           transactions={filteredTransactions}
           onDelete={requestDelete}
+          onBulkDelete={onBulkDeleteTransactions}
           onEdit={handleOpenEditModal}
           onUploadAttachment={onUploadAttachment}
           onDeleteAttachment={onDeleteAttachment}
@@ -285,6 +305,9 @@ export function RevenueTransactions({
                   editing={editing}
                   onCancelEdit={handleCloseModal}
                   onUploadAttachment={onUploadAttachment}
+                  onDeleteAttachment={onDeleteAttachment}
+                  templateToApply={templateToApply}
+                  onTemplateApplied={onTemplateApplied}
                 />
               </div>
             </div>,

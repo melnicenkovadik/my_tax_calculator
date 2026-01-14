@@ -8,6 +8,7 @@ import { SchedulePanel } from "@/components/SchedulePanel";
 import { YearsDropdown } from "@/components/YearsDropdown";
 import { YearSummary } from "@/components/YearSummary";
 import { RevenueTransactions } from "@/components/RevenueTransactions";
+import { TemplatesModal } from "@/components/TemplatesModal";
 import Link from "next/link";
 import { formatCurrency, formatPercent } from "@/lib/format/currency";
 import {
@@ -22,6 +23,7 @@ import type {
   ScheduleSplit,
   RevenueTransaction,
   YearData,
+  TransactionTemplate,
 } from "@/lib/tax/types";
 import {
   calculatorInputValuesSchema,
@@ -241,6 +243,8 @@ export function HomeClient({ initialYear, initialData }: HomeClientProps) {
     initialData?.transactions ?? [],
   );
   const [isCalculatorModalOpen, setIsCalculatorModalOpen] = useState(false);
+  const [isTemplatesModalOpen, setIsTemplatesModalOpen] = useState(false);
+  const [templateToApply, setTemplateToApply] = useState<TransactionTemplate | null>(null);
   const hasPersistedOnce = useRef(false);
 
   // Sync URL with year changes
@@ -402,6 +406,12 @@ export function HomeClient({ initialYear, initialData }: HomeClientProps) {
     await deleteTransaction(id);
   };
 
+  const handleBulkDeleteTransactions = async (ids: string[]) => {
+    if (ids.length === 0) return;
+    setTransactions((prev) => prev.filter((t) => !ids.includes(t.id)));
+    await Promise.all(ids.map((id) => deleteTransaction(id)));
+  };
+
   const handleUploadAttachment = async (transactionId: string, file: File) => {
     const uploaded = await uploadAttachment(transactionId, file);
     if (!uploaded) return;
@@ -468,6 +478,13 @@ export function HomeClient({ initialYear, initialData }: HomeClientProps) {
               />
               <button
                 type="button"
+                onClick={() => setIsTemplatesModalOpen(true)}
+                className="rounded-full border border-card-border bg-white/70 px-4 py-2 text-xs font-semibold text-muted transition hover:border-foreground/30 hover:text-foreground"
+              >
+                Templates
+              </button>
+              <button
+                type="button"
                 onClick={handleOpenCalculatorModal}
                 className="rounded-full border border-card-border bg-white/70 px-4 py-2 text-xs font-semibold text-muted transition hover:border-foreground/30 hover:text-foreground"
               >
@@ -491,15 +508,18 @@ export function HomeClient({ initialYear, initialData }: HomeClientProps) {
         </header>
 
         <div className="animate-fade-in" style={{ animationDelay: "180ms" }}>
-          <RevenueTransactions
-            year={currentYearNum}
-            transactions={transactions}
-            onAddTransaction={handleAddTransaction}
-            onUpdateTransaction={handleUpdateTransaction}
-            onDeleteTransaction={handleDeleteTransaction}
-            onUploadAttachment={handleUploadAttachment}
-            onDeleteAttachment={handleDeleteAttachment}
-          />
+        <RevenueTransactions
+          year={currentYearNum}
+          transactions={transactions}
+          onAddTransaction={handleAddTransaction}
+          onUpdateTransaction={handleUpdateTransaction}
+          onDeleteTransaction={handleDeleteTransaction}
+          onUploadAttachment={handleUploadAttachment}
+          onDeleteAttachment={handleDeleteAttachment}
+          onBulkDeleteTransactions={handleBulkDeleteTransactions}
+          templateToApply={templateToApply}
+          onTemplateApplied={() => setTemplateToApply(null)}
+        />
         </div>
 
         <div className="grid gap-8 md:grid-cols-2">
@@ -596,6 +616,16 @@ export function HomeClient({ initialYear, initialData }: HomeClientProps) {
             </div>
           </div>
         </div>
+      )}
+
+      {isTemplatesModalOpen && (
+        <TemplatesModal
+          onClose={() => setIsTemplatesModalOpen(false)}
+          onSelectTemplate={(template) => {
+            setTemplateToApply(template);
+            setIsTemplatesModalOpen(false);
+          }}
+        />
       )}
     </div>
   );
