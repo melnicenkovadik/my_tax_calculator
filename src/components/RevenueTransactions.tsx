@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { TransactionForm } from "./TransactionForm";
 import { TransactionsList } from "./TransactionsList";
@@ -144,24 +144,17 @@ export function RevenueTransactions({
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setEditing(null);
-  };
-
-  useEffect(() => {
-    if (templateToApply && !isModalOpen) {
-      setIsModalOpen(true);
-      setEditing(null);
-    }
-  }, [templateToApply, isModalOpen]);
-
-  useEffect(() => {
-    if (!isModalOpen && templateToApply && onTemplateApplied) {
+    if (templateToApply && onTemplateApplied) {
       onTemplateApplied();
     }
-  }, [isModalOpen, templateToApply, onTemplateApplied]);
+  };
+
+  const isTemplateMode = Boolean(templateToApply);
+  const isModalVisible = isModalOpen || isTemplateMode;
 
   return (
     <section className="rounded-3xl border border-card-border bg-card/80 p-5 shadow-[0_20px_60px_-40px_rgba(25,25,25,0.35)] backdrop-blur">
-      <div className="flex flex-wrap items-start justify-between gap-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted">
             Журнал доходів
@@ -182,7 +175,7 @@ export function RevenueTransactions({
         </button>
       </div>
 
-      <div className="mt-4 flex flex-wrap gap-3">
+      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:flex lg:flex-wrap">
         <div className="rounded-2xl border border-card-border bg-white/70 px-4 py-2">
           <p className="text-xs text-muted">Всього за рік</p>
           <p className="text-sm font-semibold text-foreground">
@@ -190,13 +183,13 @@ export function RevenueTransactions({
           </p>
         </div>
         <div className="rounded-2xl border border-card-border bg-white/70 px-4 py-2">
-          <p className="text-xs text-muted">Транзакцій</p>
+          <p className="text-xs text-muted">К-сть</p>
           <p className="text-sm font-semibold text-foreground">
             {transactions.length}
           </p>
         </div>
         <div className="rounded-2xl border border-card-border bg-white/70 px-4 py-2">
-          <p className="text-xs text-muted">Середня транзакція</p>
+          <p className="text-xs text-muted">Середня</p>
           <p className="text-sm font-semibold text-foreground">
             {formatCurrency(averageTransaction)}
           </p>
@@ -211,7 +204,7 @@ export function RevenueTransactions({
         ) : null}
       </div>
 
-      <div className="mt-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,0.6fr)_minmax(0,0.6fr)_auto]">
+      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.6fr)_minmax(0,0.6fr)_auto]">
         <label className="text-xs text-muted">
           Пошук
           <input
@@ -256,7 +249,7 @@ export function RevenueTransactions({
               setQuery("");
               setMonthFilter("all");
             }}
-            className="self-end rounded-full border border-card-border px-4 py-2 text-xs font-semibold text-muted transition hover:border-foreground/30 hover:text-foreground"
+            className="w-full rounded-full border border-card-border px-4 py-2 text-xs font-semibold text-muted transition hover:border-foreground/30 hover:text-foreground lg:self-end"
           >
             Скинути фільтри
           </button>
@@ -279,15 +272,15 @@ export function RevenueTransactions({
         />
       </div>
 
-      {isModalOpen && typeof window !== "undefined"
+      {isModalVisible && typeof window !== "undefined"
         ? createPortal(
             <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-8">
               <div
                 className="absolute inset-0 bg-black/40 backdrop-blur-sm"
                 onClick={handleCloseModal}
               />
-              <div className="relative z-10 w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl border border-card-border bg-card/95 p-6 shadow-2xl">
-                <div className="flex items-center justify-between mb-4">
+              <div className="relative z-10 w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl border border-card-border bg-card/95 p-4 shadow-2xl sm:p-6">
+                <div className="flex items-center justify-between mb-3 sm:mb-4">
                   <h3 className="text-lg font-semibold text-foreground">
                     {editing ? "Редагувати транзакцію" : "Додати транзакцію"}
                   </h3>
@@ -302,7 +295,7 @@ export function RevenueTransactions({
                 </div>
                 <TransactionForm
                   onSubmit={handleSubmit}
-                  editing={editing}
+                  editing={isTemplateMode ? null : editing}
                   onCancelEdit={handleCloseModal}
                   onUploadAttachment={onUploadAttachment}
                   onDeleteAttachment={onDeleteAttachment}
@@ -319,7 +312,7 @@ export function RevenueTransactions({
         ? createPortal(
             <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
               <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
-              <div className="relative z-10 w-full max-w-md rounded-2xl border border-card-border bg-card/95 p-6 shadow-2xl">
+              <div className="relative z-10 w-full max-w-md rounded-2xl border border-card-border bg-card/95 p-4 shadow-2xl sm:p-6">
                 <h3 className="text-lg font-semibold text-foreground">Видалити транзакцію?</h3>
                 <p className="mt-2 text-sm text-muted">
                   Це дію не можна скасувати. Переконайтеся, що видаляєте потрібний запис.

@@ -169,7 +169,7 @@ export function TransactionForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className="flex flex-col gap-4"
+      className="flex flex-col gap-3 sm:gap-4"
     >
       <label className="text-xs text-muted">
         Дата
@@ -177,7 +177,7 @@ export function TransactionForm({
           type="date"
           value={date}
           onChange={(e) => setDate(e.target.value)}
-          className="mt-1 w-full rounded-xl border border-card-border bg-white/80 px-3 py-2 text-sm shadow-sm transition focus:outline-none focus:ring-2 focus:ring-accent/30"
+          className="mt-1 w-full rounded-xl border border-card-border bg-white/80 px-3 py-2 text-base shadow-sm transition focus:outline-none focus:ring-2 focus:ring-accent/30 sm:text-sm"
           required
         />
       </label>
@@ -190,7 +190,7 @@ export function TransactionForm({
           onChange={(e) => setAmount(e.target.value)}
           min="0"
           step="0.01"
-          className="mt-1 w-full rounded-xl border border-card-border bg-white/80 px-3 py-2 text-sm shadow-sm transition focus:outline-none focus:ring-2 focus:ring-accent/30"
+          className="mt-1 w-full rounded-xl border border-card-border bg-white/80 px-3 py-2 text-base shadow-sm transition focus:outline-none focus:ring-2 focus:ring-accent/30 sm:text-sm"
           placeholder="0.00"
           required
         />
@@ -200,7 +200,7 @@ export function TransactionForm({
         <select
           value={causale}
           onChange={(e) => setCausale(e.target.value)}
-          className="mt-1 w-full rounded-xl border border-card-border bg-white/80 px-3 py-2 text-sm shadow-sm transition focus:outline-none focus:ring-2 focus:ring-accent/30"
+          className="mt-1 w-full rounded-xl border border-card-border bg-white/80 px-3 py-2 text-base shadow-sm transition focus:outline-none focus:ring-2 focus:ring-accent/30 sm:text-sm"
         >
           <option value="">-- Оберіть значення --</option>
           <option value="BONIFICO ESTERO">BONIFICO ESTERO</option>
@@ -214,7 +214,7 @@ export function TransactionForm({
           type="text"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          className="mt-1 w-full rounded-xl border border-card-border bg-white/80 px-3 py-2 text-sm shadow-sm transition focus:outline-none focus:ring-2 focus:ring-accent/30"
+          className="mt-1 w-full rounded-xl border border-card-border bg-white/80 px-3 py-2 text-base shadow-sm transition focus:outline-none focus:ring-2 focus:ring-accent/30 sm:text-sm"
           placeholder="Наприклад: Оплата за проект"
         />
       </label>
@@ -226,7 +226,7 @@ export function TransactionForm({
           value={selectedTemplateId}
           onChange={(e) => handleTemplateSelect(e.target.value)}
           disabled={loadingTemplates}
-          className="w-full rounded-xl border border-card-border bg-white/80 px-3 py-2 text-sm shadow-sm transition focus:outline-none focus:ring-2 focus:ring-accent/30 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full rounded-xl border border-card-border bg-white/80 px-3 py-2 text-base shadow-sm transition focus:outline-none focus:ring-2 focus:ring-accent/30 disabled:opacity-50 disabled:cursor-not-allowed sm:text-sm"
         >
           <option value="">-- Оберіть шаблон --</option>
           {templates.map((template) => (
@@ -247,7 +247,7 @@ export function TransactionForm({
           type="text"
           value={sender}
           onChange={(e) => setSender(e.target.value)}
-          className="mt-1 w-full rounded-xl border border-card-border bg-white/80 px-3 py-2 text-sm shadow-sm transition focus:outline-none focus:ring-2 focus:ring-accent/30"
+          className="mt-1 w-full rounded-xl border border-card-border bg-white/80 px-3 py-2 text-base shadow-sm transition focus:outline-none focus:ring-2 focus:ring-accent/30 sm:text-sm"
           placeholder="Компанія або ім'я"
         />
       </label>
@@ -257,7 +257,7 @@ export function TransactionForm({
           value={billTo}
           onChange={(e) => setBillTo(e.target.value)}
           rows={4}
-          className="mt-1 w-full rounded-xl border border-card-border bg-white/80 px-3 py-2 text-sm font-mono shadow-sm transition focus:outline-none focus:ring-2 focus:ring-accent/30"
+          className="mt-1 w-full rounded-xl border border-card-border bg-white/80 px-3 py-2 text-base font-mono shadow-sm transition focus:outline-none focus:ring-2 focus:ring-accent/30 sm:text-sm"
           placeholder={`Company name: UAB "Civitta"
 Company code: 302477747
 VAT code: LT100005180610
@@ -275,7 +275,7 @@ IBAN: LT407300010124087168`}
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           rows={3}
-          className="mt-1 w-full rounded-xl border border-card-border bg-white/80 px-3 py-2 text-sm shadow-sm transition focus:outline-none focus:ring-2 focus:ring-accent/30"
+          className="mt-1 w-full rounded-xl border border-card-border bg-white/80 px-3 py-2 text-base shadow-sm transition focus:outline-none focus:ring-2 focus:ring-accent/30 sm:text-sm"
           placeholder="Деталі платежу, спосіб оплати, посилання на інвойс"
           aria-label="Нотатки про транзакцію"
         />

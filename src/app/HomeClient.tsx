@@ -464,47 +464,38 @@ export function HomeClient({ initialYear, initialData }: HomeClientProps) {
       <div className="pointer-events-none absolute -top-24 right-10 h-64 w-64 rounded-full bg-[radial-gradient(circle,#f7e0c8,transparent_70%)] opacity-70 blur-3xl" />
       <div className="pointer-events-none absolute left-8 top-48 h-72 w-72 rounded-full bg-[radial-gradient(circle,#d9ebdf,transparent_70%)] opacity-70 blur-3xl" />
 
-      <div className="relative flex w-full flex-col gap-8 px-[10px] py-12">
+      <div className="relative flex w-full flex-col gap-8 px-3 py-8 sm:px-[10px] sm:py-12">
         <header className="animate-fade-up">
           <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="inline-flex items-center gap-2 rounded-full border border-card-border bg-white/70 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-muted">
-              Персональний калькулятор
-            </div>
-            <div className="flex items-center gap-3">
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
               <YearsDropdown
                 currentYear={currentYearNum}
                 onYearSelect={handleYearChange}
                 onRefresh={() => setYearsRefreshKey((k) => k + 1)}
+                refreshKey={yearsRefreshKey}
               />
               <button
                 type="button"
                 onClick={() => setIsTemplatesModalOpen(true)}
-                className="rounded-full border border-card-border bg-white/70 px-4 py-2 text-xs font-semibold text-muted transition hover:border-foreground/30 hover:text-foreground"
+                className="w-full rounded-full border border-card-border bg-white/70 px-4 py-2 text-xs font-semibold text-muted transition hover:border-foreground/30 hover:text-foreground sm:w-auto"
               >
                 Templates
               </button>
               <button
                 type="button"
                 onClick={handleOpenCalculatorModal}
-                className="rounded-full border border-card-border bg-white/70 px-4 py-2 text-xs font-semibold text-muted transition hover:border-foreground/30 hover:text-foreground"
+                className="w-full rounded-full border border-card-border bg-white/70 px-4 py-2 text-xs font-semibold text-muted transition hover:border-foreground/30 hover:text-foreground sm:w-auto"
               >
                 Вхідні дані
               </button>
               <Link
                 href="/backup"
-                className="rounded-full border border-card-border bg-white/70 px-4 py-2 text-xs font-semibold text-muted transition hover:border-foreground/30 hover:text-foreground"
+                className="w-full rounded-full border border-card-border bg-white/70 px-4 py-2 text-xs font-semibold text-muted transition hover:border-foreground/30 hover:text-foreground sm:w-auto"
               >
                 Резервна копія
               </Link>
             </div>
           </div>
-          <h1 className="mt-4 font-display text-4xl text-foreground sm:text-5xl">
-            Калькулятор податків Italian Forfettario
-          </h1>
-          <p className="mt-3 max-w-2xl text-base text-muted">
-            Один екран для розрахунку оподатковуваної бази, INPS та imposta sostitutiva
-            за режимом Forfettario. Дані зберігаються локально у вашому браузері.
-          </p>
         </header>
 
         <div className="animate-fade-in" style={{ animationDelay: "180ms" }}>
@@ -522,7 +513,7 @@ export function HomeClient({ initialYear, initialData }: HomeClientProps) {
         />
         </div>
 
-        <div className="grid gap-8 md:grid-cols-2">
+        <div className="grid gap-6 md:grid-cols-2">
           <YearSummary
             year={currentYearNum}
             totalRevenue={inputsWithTransactions.revenue}

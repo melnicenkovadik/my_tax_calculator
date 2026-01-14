@@ -123,13 +123,13 @@ export function TemplatesModal({ onClose, onSelectTemplate }: TemplatesModalProp
   if (typeof window === "undefined") return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-8">
+    <div className="fixed inset-0 z-50 flex items-start justify-center px-3 py-4 sm:items-center sm:px-4 sm:py-8">
       <div
         className="absolute inset-0 bg-black/40 backdrop-blur-sm"
         onClick={onClose}
       />
-      <div className="relative z-10 w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl border border-card-border bg-card/95 shadow-2xl">
-        <div className="sticky top-0 flex items-center justify-between border-b border-card-border bg-card/95 px-6 py-4 backdrop-blur">
+      <div className="relative z-10 flex w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-card-border bg-card/95 shadow-2xl sm:max-h-[90vh]">
+        <div className="sticky top-0 flex items-center justify-between border-b border-card-border bg-card/95 px-4 py-3 backdrop-blur sm:px-6 sm:py-4">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted">
               Шаблони транзакцій
@@ -160,7 +160,13 @@ export function TemplatesModal({ onClose, onSelectTemplate }: TemplatesModalProp
           </button>
         </div>
 
-        <div className="p-6">
+        {loading && (
+          <div className="border-b border-card-border bg-white/70 px-4 py-2 text-xs text-muted sm:px-6">
+            Завантаження шаблонів...
+          </div>
+        )}
+
+        <div className="max-h-[calc(100vh-220px)] overflow-y-auto p-4 sm:max-h-none sm:p-6">
           <div className="grid gap-6 lg:grid-cols-2">
             {/* Form Section */}
             <div className="space-y-4">
@@ -180,14 +186,14 @@ export function TemplatesModal({ onClose, onSelectTemplate }: TemplatesModalProp
               </div>
 
               {(isCreating || editingId) && (
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
                   <label className="block text-xs text-muted">
                     Назва шаблону *
                     <input
                       type="text"
                       value={formData.name}
                       onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      className="mt-1 w-full rounded-xl border border-card-border bg-white/80 px-3 py-2 text-sm shadow-sm transition focus:outline-none focus:ring-2 focus:ring-accent/30"
+                      className="mt-1 w-full rounded-xl border border-card-border bg-white/80 px-3 py-2 text-base shadow-sm transition focus:outline-none focus:ring-2 focus:ring-accent/30 sm:text-sm"
                       placeholder="Наприклад: Civitta"
                       required
                       autoFocus
@@ -200,7 +206,7 @@ export function TemplatesModal({ onClose, onSelectTemplate }: TemplatesModalProp
                       type="text"
                       value={formData.sender}
                       onChange={(e) => setFormData({ ...formData, sender: e.target.value })}
-                      className="mt-1 w-full rounded-xl border border-card-border bg-white/80 px-3 py-2 text-sm shadow-sm transition focus:outline-none focus:ring-2 focus:ring-accent/30"
+                      className="mt-1 w-full rounded-xl border border-card-border bg-white/80 px-3 py-2 text-base shadow-sm transition focus:outline-none focus:ring-2 focus:ring-accent/30 sm:text-sm"
                       placeholder="Компанія або ім'я"
                     />
                   </label>
@@ -211,7 +217,7 @@ export function TemplatesModal({ onClose, onSelectTemplate }: TemplatesModalProp
                       value={formData.billTo}
                       onChange={(e) => setFormData({ ...formData, billTo: e.target.value })}
                       rows={4}
-                      className="mt-1 w-full rounded-xl border border-card-border bg-white/80 px-3 py-2 text-sm font-mono shadow-sm transition focus:outline-none focus:ring-2 focus:ring-accent/30"
+                      className="mt-1 w-full rounded-xl border border-card-border bg-white/80 px-3 py-2 text-base font-mono shadow-sm transition focus:outline-none focus:ring-2 focus:ring-accent/30 sm:text-sm"
                       placeholder="Company name, address, etc."
                     />
                   </label>
@@ -222,7 +228,7 @@ export function TemplatesModal({ onClose, onSelectTemplate }: TemplatesModalProp
                       value={formData.notes}
                       onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                       rows={3}
-                      className="mt-1 w-full rounded-xl border border-card-border bg-white/80 px-3 py-2 text-sm shadow-sm transition focus:outline-none focus:ring-2 focus:ring-accent/30"
+                      className="mt-1 w-full rounded-xl border border-card-border bg-white/80 px-3 py-2 text-base shadow-sm transition focus:outline-none focus:ring-2 focus:ring-accent/30 sm:text-sm"
                       placeholder="Додаткові нотатки"
                     />
                   </label>
@@ -261,7 +267,7 @@ export function TemplatesModal({ onClose, onSelectTemplate }: TemplatesModalProp
                   Немає збережених шаблонів
                 </div>
               ) : (
-                <div className="space-y-2 max-h-[60vh] overflow-y-auto">
+                <div className="space-y-2 max-h-[45vh] overflow-y-auto sm:max-h-[60vh]">
                   {templates.map((template) => (
                     <div
                       key={template.id}

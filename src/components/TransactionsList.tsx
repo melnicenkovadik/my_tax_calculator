@@ -410,36 +410,156 @@ export function TransactionsList({
   return (
     <div className="overflow-x-auto overflow-y-visible rounded-2xl border border-card-border bg-white/70">
       {selectedIds.size > 0 && (
-        <div className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-card-border bg-white/95 px-4 py-3 backdrop-blur-sm">
+        <div className="sticky top-0 z-20 flex flex-col gap-3 border-b border-card-border bg-white/95 px-4 py-3 backdrop-blur-sm sm:flex-row sm:items-center sm:justify-between">
           <span className="text-sm font-medium text-foreground">
             Вибрано: {selectedIds.size}
           </span>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap gap-2">
             <button
               type="button"
               onClick={handleBulkEmail}
-              className="rounded-lg border border-card-border bg-white/80 px-3 py-1.5 text-xs font-medium text-muted transition hover:border-green-300 hover:bg-green-50 hover:text-green-700"
+              className="w-full rounded-lg border border-card-border bg-white/80 px-3 py-2 text-xs font-medium text-muted transition hover:border-green-300 hover:bg-green-50 hover:text-green-700 sm:w-auto sm:py-1.5"
             >
               ✉ Email ({selectedIds.size})
             </button>
             <button
               type="button"
               onClick={handleBulkDelete}
-              className="rounded-lg border border-card-border bg-white/80 px-3 py-1.5 text-xs font-medium text-muted transition hover:border-rose-300 hover:bg-rose-50 hover:text-rose-600"
+              className="w-full rounded-lg border border-card-border bg-white/80 px-3 py-2 text-xs font-medium text-muted transition hover:border-rose-300 hover:bg-rose-50 hover:text-rose-600 sm:w-auto sm:py-1.5"
             >
               ✕ Видалити ({selectedIds.size})
             </button>
             <button
               type="button"
               onClick={() => setSelectedIds(new Set())}
-              className="rounded-lg border border-card-border bg-white/80 px-3 py-1.5 text-xs font-medium text-muted transition hover:border-foreground/30 hover:text-foreground"
+              className="w-full rounded-lg border border-card-border bg-white/80 px-3 py-2 text-xs font-medium text-muted transition hover:border-foreground/30 hover:text-foreground sm:w-auto sm:py-1.5"
             >
               Скасувати
             </button>
           </div>
         </div>
       )}
-      <div className="min-h-[400px] max-h-[600px] overflow-y-auto">
+
+      <div className="min-h-[400px] max-h-[600px] overflow-y-auto sm:hidden">
+        <div className="space-y-3 p-3">
+          {transactions.map((transaction) => (
+            <div
+              key={transaction.id}
+              className={`rounded-2xl border border-card-border bg-white/80 p-4 shadow-sm transition ${
+                selectedIds.has(transaction.id) ? "ring-1 ring-accent/30" : ""
+              }`}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.has(transaction.id)}
+                    onChange={() => toggleSelect(transaction.id)}
+                    className="h-5 w-5 cursor-pointer rounded border-card-border text-accent focus:ring-2 focus:ring-accent/30"
+                    aria-label={`Вибрати транзакцію ${transaction.date}`}
+                  />
+                  <span className="text-sm font-semibold text-foreground">
+                    {formatDate(transaction.date)}
+                  </span>
+                </label>
+                <button
+                  type="button"
+                  onClick={() => onEdit(transaction)}
+                  className="rounded-lg border border-card-border bg-white/80 px-3 py-1.5 text-xs font-medium text-muted transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
+                  title="Редагувати транзакцію"
+                >
+                  ✎
+                </button>
+              </div>
+
+              <div className="mt-3 grid gap-2 text-xs text-muted">
+                <div className="flex items-center justify-between gap-2">
+                  <span>Сума</span>
+                  <span className="text-sm font-semibold text-foreground">
+                    {formatCurrency(transaction.amount)}
+                  </span>
+                </div>
+                <div>
+                  <div className="mb-1">Опис</div>
+                  <div className="flex items-center gap-1 text-sm text-foreground">
+                    <span className="flex-1">
+                      {transaction.description?.trim() || "—"}
+                    </span>
+                    {transaction.description?.trim() && (
+                      <CopyButton text={transaction.description.trim()} label="опис" />
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <div className="mb-1">Відправник</div>
+                  <div className="flex items-center gap-1 text-sm text-foreground">
+                    <span className="flex-1">
+                      {transaction.sender?.trim() || "—"}
+                    </span>
+                    {transaction.sender?.trim() && (
+                      <CopyButton text={transaction.sender.trim()} label="відправника" />
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <div className="mb-1">Bill To</div>
+                  <div className="flex items-start gap-1 text-xs text-foreground whitespace-pre-wrap font-mono">
+                    <span className="flex-1">
+                      {transaction.billTo?.trim() || "—"}
+                    </span>
+                    {transaction.billTo?.trim() && (
+                      <CopyButton text={transaction.billTo.trim()} label="Bill To" />
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <div className="mb-1">Нотатки</div>
+                  <div className="flex items-start gap-1 text-sm text-foreground whitespace-pre-wrap">
+                    <span className="flex-1">
+                      {transaction.notes?.trim() || "—"}
+                    </span>
+                    {transaction.notes?.trim() && (
+                      <CopyButton text={transaction.notes.trim()} label="нотатки" />
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <span>Causale</span>
+                  <div className="flex items-center gap-1 text-sm text-foreground">
+                    <span>{transaction.causale?.trim() || "—"}</span>
+                    {transaction.causale?.trim() && (
+                      <CopyButton text={transaction.causale.trim()} label="Causale" />
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <div className="mb-1">Вкладення</div>
+                  {transaction.attachments?.length ? (
+                    <div className="flex flex-wrap gap-1.5">
+                      {transaction.attachments.map((att) => (
+                        <a
+                          key={att.id}
+                          href={att.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 rounded-lg border border-card-border/60 bg-white/80 px-2 py-1 text-[11px] text-foreground transition hover:border-accent/40 hover:text-accent"
+                        >
+                          <span className="text-[10px]" aria-hidden="true">📎</span>
+                          <span className="max-w-[140px] truncate">{att.originalName}</span>
+                        </a>
+                      ))}
+                    </div>
+                  ) : (
+                    <span className="text-[11px] text-muted/70">—</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="min-h-[400px] max-h-[600px] overflow-y-auto hidden sm:block">
         <table className="w-full min-w-[1200px] text-sm">
           <thead className="bg-white/80 text-[11px] uppercase tracking-[0.2em] text-muted sticky top-0 z-10">
             <tr>
