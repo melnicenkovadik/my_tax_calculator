@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { ensureTables, sql } from "@/lib/db";
+import type { TransactionAttachment } from "@/lib/tax/types";
 
 export const dynamic = "force-dynamic";
 
@@ -52,6 +53,9 @@ const normalizeTransactionsInput = (value: unknown) => {
         date?: unknown;
         amount?: unknown;
         description?: unknown;
+        sender?: unknown;
+        billTo?: unknown;
+        notes?: unknown;
       };
       const date = normalizeDateString(candidate.date);
       const amount = normalizeAmount(candidate.amount);
@@ -60,9 +64,29 @@ const normalizeTransactionsInput = (value: unknown) => {
         typeof candidate.description === "string" && candidate.description.trim()
           ? candidate.description.trim()
           : undefined;
+      const sender =
+        typeof candidate.sender === "string" && candidate.sender.trim()
+          ? candidate.sender.trim()
+          : undefined;
+      const billTo =
+        typeof candidate.billTo === "string" && candidate.billTo.trim()
+          ? candidate.billTo.trim()
+          : undefined;
+      const notes =
+        typeof candidate.notes === "string" && candidate.notes.trim()
+          ? candidate.notes.trim()
+          : undefined;
       const rawId = typeof candidate.id === "string" ? candidate.id : "";
       const id = uuidRegex.test(rawId) ? rawId : generateId();
-      return { id, date, amount, description: description ?? undefined };
+      return {
+        id,
+        date,
+        amount,
+        description: description ?? undefined,
+        sender: sender ?? undefined,
+        billTo: billTo ?? undefined,
+        notes: notes ?? undefined,
+      };
     })
     .filter(
       (transaction): transaction is {
@@ -70,6 +94,9 @@ const normalizeTransactionsInput = (value: unknown) => {
         date: string;
         amount: number;
         description: string | undefined;
+        sender: string | undefined;
+        billTo: string | undefined;
+        notes: string | undefined;
       } => Boolean(transaction),
     );
 };
@@ -92,6 +119,9 @@ const normalizeStoredTransactions = (value: unknown) => {
         date?: unknown;
         amount?: unknown;
         description?: unknown;
+        sender?: unknown;
+        billTo?: unknown;
+        notes?: unknown;
       };
       const date = normalizeDateString(candidate.date);
       const amount = normalizeAmount(candidate.amount);
@@ -100,9 +130,29 @@ const normalizeStoredTransactions = (value: unknown) => {
         typeof candidate.description === "string" && candidate.description.trim()
           ? candidate.description.trim()
           : undefined;
+      const sender =
+        typeof candidate.sender === "string" && candidate.sender.trim()
+          ? candidate.sender.trim()
+          : undefined;
+      const billTo =
+        typeof candidate.billTo === "string" && candidate.billTo.trim()
+          ? candidate.billTo.trim()
+          : undefined;
+      const notes =
+        typeof candidate.notes === "string" && candidate.notes.trim()
+          ? candidate.notes.trim()
+          : undefined;
       const rawId = typeof candidate.id === "string" ? candidate.id : "";
       const id = rawId || generateId();
-      return { id, date, amount, description: description ?? undefined };
+      return {
+        id,
+        date,
+        amount,
+        description: description ?? undefined,
+        sender: sender ?? undefined,
+        billTo: billTo ?? undefined,
+        notes: notes ?? undefined,
+      };
     })
     .filter(
       (transaction): transaction is {
@@ -110,15 +160,48 @@ const normalizeStoredTransactions = (value: unknown) => {
         date: string;
         amount: number;
         description: string | undefined;
+        sender: string | undefined;
+        billTo: string | undefined;
+        notes: string | undefined;
       } => Boolean(transaction),
     );
 };
 
 const mergeTransactions = (
-  primary: Array<{ id: string; date: string; amount: number; description?: string }>,
-  fallback: Array<{ id: string; date: string; amount: number; description?: string }>,
+  primary: Array<{
+    id: string;
+    date: string;
+    amount: number;
+    description?: string;
+    sender?: string;
+    billTo?: string;
+    notes?: string;
+    attachments?: unknown[];
+  }>,
+  fallback: Array<{
+    id: string;
+    date: string;
+    amount: number;
+    description?: string;
+    sender?: string;
+    billTo?: string;
+    notes?: string;
+    attachments?: unknown[];
+  }>,
 ) => {
-  const map = new Map<string, { id: string; date: string; amount: number; description?: string }>();
+  const map = new Map<
+    string,
+    {
+      id: string;
+      date: string;
+      amount: number;
+      description?: string;
+      sender?: string;
+      billTo?: string;
+      notes?: string;
+      attachments?: unknown[];
+    }
+  >();
   for (const tx of primary) {
     map.set(tx.id, tx);
   }
@@ -159,11 +242,39 @@ export async function GET(
     }
     const row = rows[0];
     const { rows: transactionRows } = await sql`
-      SELECT id, date, amount, description
+      SELECT id, date, amount, description, sender, bill_to, notes
       FROM transactions
       WHERE year = ${yearNum}
       ORDER BY date DESC, created_at DESC
     `;
+
+    const transactionIds = transactionRows.map((row) => String(row.id));
+    let attachmentsByTransaction: Record<string, TransactionAttachment[]> = {};
+    if (transactionIds.length > 0) {
+      // Query attachments for all transactions
+      // Use individual queries if array support is not available
+      const attachmentPromises = transactionIds.map(async (id) => {
+        const { rows } = await sql`
+          SELECT id, transaction_id, url, content_type, original_name, size, created_at
+          FROM transaction_attachments
+          WHERE transaction_id = ${id}
+        `;
+        return rows.map((row) => ({
+          id: String(row.id),
+          transactionId: String(row.transaction_id),
+          url: String(row.url),
+          contentType: String(row.content_type),
+          originalName: String(row.original_name),
+          size: Number(row.size),
+          createdAt: new Date(row.created_at).toISOString(),
+        }));
+      });
+      const attachmentArrays = await Promise.all(attachmentPromises);
+      transactionIds.forEach((id, index) => {
+        attachmentsByTransaction[id] = attachmentArrays[index];
+      });
+    }
+
     const transactions = transactionRows
       .map((transaction) => {
         const date = normalizeDateString(transaction.date);
@@ -178,6 +289,19 @@ export async function GET(
             transaction.description.trim()
               ? transaction.description.trim()
               : undefined,
+          sender:
+            typeof transaction.sender === "string" && transaction.sender.trim()
+              ? transaction.sender.trim()
+              : undefined,
+          billTo:
+            typeof transaction.bill_to === "string" && transaction.bill_to.trim()
+              ? transaction.bill_to.trim()
+              : undefined,
+          notes:
+            typeof transaction.notes === "string" && transaction.notes.trim()
+              ? transaction.notes.trim()
+              : undefined,
+          attachments: attachmentsByTransaction[String(transaction.id)] ?? [],
         };
       })
       .filter(
@@ -186,6 +310,10 @@ export async function GET(
           date: string;
           amount: number;
           description: string | undefined;
+          sender: string | undefined;
+          billTo: string | undefined;
+          notes: string | undefined;
+          attachments: TransactionAttachment[];
         } => Boolean(transaction),
       );
     const storedTransactions = normalizeStoredTransactions(row.transactions);
@@ -231,21 +359,6 @@ export async function PUT(
           defaults = EXCLUDED.defaults,
           last_updated = NOW();
     `;
-
-    await sql`DELETE FROM transactions WHERE year = ${yearNum}`;
-    for (const transaction of txs) {
-      await sql`
-        INSERT INTO transactions (id, year, date, amount, description, created_at)
-        VALUES (
-          ${transaction.id},
-          ${yearNum},
-          ${transaction.date},
-          ${transaction.amount},
-          ${transaction.description ?? null},
-          NOW()
-        );
-      `;
-    }
 
     await sql`
       UPDATE years

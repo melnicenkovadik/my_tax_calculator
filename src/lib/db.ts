@@ -28,6 +28,9 @@ export async function ensureTables() {
         date DATE NOT NULL,
         amount NUMERIC(14, 2) NOT NULL,
         description TEXT,
+        sender TEXT,
+        bill_to TEXT,
+        notes TEXT,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
     `;
@@ -46,10 +49,56 @@ export async function ensureTables() {
         ALTER COLUMN id TYPE TEXT USING id::text;
       `;
     }
+
+    // Add sender column if missing
+    const { rows: senderColumn } = await sql`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'transactions' AND column_name = 'sender';
+    `;
+    if (senderColumn.length === 0) {
+      await sql`ALTER TABLE transactions ADD COLUMN sender TEXT`;
+    }
+
+    // Add notes column if missing
+    const { rows: notesColumn } = await sql`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'transactions' AND column_name = 'notes';
+    `;
+    if (notesColumn.length === 0) {
+      await sql`ALTER TABLE transactions ADD COLUMN notes TEXT`;
+    }
+
+    // Add bill_to column if missing
+    const { rows: billToColumn } = await sql`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'transactions' AND column_name = 'bill_to';
+    `;
+    if (billToColumn.length === 0) {
+      await sql`ALTER TABLE transactions ADD COLUMN bill_to TEXT`;
+    }
   }
 
   await sql`
     CREATE INDEX IF NOT EXISTS transactions_year_idx ON transactions (year);
+  `;
+
+  // Attachments table
+  await sql`
+    CREATE TABLE IF NOT EXISTS transaction_attachments (
+      id TEXT PRIMARY KEY,
+      transaction_id TEXT NOT NULL REFERENCES transactions(id) ON DELETE CASCADE,
+      url TEXT NOT NULL,
+      content_type TEXT NOT NULL,
+      original_name TEXT NOT NULL,
+      size BIGINT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+  `;
+  await sql`
+    CREATE INDEX IF NOT EXISTS transaction_attachments_tx_idx ON transaction_attachments (transaction_id);
   `;
 }
 

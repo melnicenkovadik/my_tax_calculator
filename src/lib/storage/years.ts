@@ -1,11 +1,13 @@
 import type {
   CalculatorInputValues,
   RevenueTransaction,
+  TransactionAttachment,
   YearData,
 } from "@/lib/tax/types";
 
 const API_BASE = "/api/years";
 const TRANSACTIONS_API = "/api/transactions";
+const ATTACHMENTS_API = "/api/attachments";
 
 export async function fetchYears(): Promise<number[]> {
   try {
@@ -120,6 +122,71 @@ export async function deleteTransaction(id: string): Promise<boolean> {
   }
 }
 
+export async function updateTransaction(
+  id: string,
+  transaction: Pick<RevenueTransaction, "date" | "amount"> &
+    Partial<Pick<RevenueTransaction, "description" | "sender" | "billTo" | "notes">>,
+): Promise<RevenueTransaction | null> {
+  try {
+    const res = await fetch(`${TRANSACTIONS_API}/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(transaction),
+    });
+    if (!res.ok) {
+      console.error("Failed to update transaction", res.status);
+      return null;
+    }
+    const data = await res.json();
+    return data?.transaction ?? null;
+  } catch (error) {
+    console.error("Failed to update transaction", error);
+    return null;
+  }
+}
+
+export async function uploadAttachment(
+  transactionId: string,
+  file: File,
+): Promise<TransactionAttachment | null> {
+  try {
+    // Send file directly in body with filename in query params (App Router method)
+    const res = await fetch(
+      `${TRANSACTIONS_API}/${transactionId}/attachments?filename=${encodeURIComponent(file.name)}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": file.type || "application/octet-stream",
+        },
+        body: file,
+      },
+    );
+    if (!res.ok) {
+      console.error("Failed to upload attachment", res.status);
+      return null;
+    }
+    const data = await res.json();
+    return data?.attachment ?? null;
+  } catch (error) {
+    console.error("Failed to upload attachment", error);
+    return null;
+  }
+}
+
+export async function deleteAttachment(id: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${ATTACHMENTS_API}/${id}`, { method: "DELETE" });
+    if (!res.ok) {
+      console.error("Failed to delete attachment", res.status);
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.error("Failed to delete attachment", error);
+    return false;
+  }
+}
+
 export function createYearData(
   year: number,
   inputs: CalculatorInputValues,
@@ -130,7 +197,7 @@ export function createYearData(
     year,
     inputs,
     defaults,
-    transactions,
+    transactions: transactions.map(({ attachments, ...rest }) => rest),
     lastUpdated: new Date().toISOString(),
   };
 }

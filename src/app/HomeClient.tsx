@@ -5,8 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { CalculatorForm } from "@/components/CalculatorForm";
 import { ResultsPanel } from "@/components/ResultsPanel";
 import { SchedulePanel } from "@/components/SchedulePanel";
-import { YearSelector } from "@/components/YearSelector";
-import { YearsOverview } from "@/components/YearsOverview";
+import { YearsDropdown } from "@/components/YearsDropdown";
 import { YearSummary } from "@/components/YearSummary";
 import { RevenueTransactions } from "@/components/RevenueTransactions";
 import Link from "next/link";
@@ -33,6 +32,12 @@ import {
   saveYearData,
   createYearData,
   deleteTransaction,
+} from "@/lib/storage/years";
+import {
+  createTransaction,
+  updateTransaction,
+  uploadAttachment,
+  deleteAttachment,
 } from "@/lib/storage/years";
 
 const defaultInputValues: CalculatorInputValues = {
@@ -363,36 +368,65 @@ export function HomeClient({ initialYear, initialData }: HomeClientProps) {
   };
 
   const handleAddTransaction = async (transaction: RevenueTransaction) => {
-    const updatedTransactions = [...transactions, transaction];
-    setTransactions(updatedTransactions);
-    
-    // Explicitly save to database after addition
-    if (state.hydrated) {
-      const yearNum = parseInt(state.values.year, 10);
-      if (!isNaN(yearNum)) {
-        await saveYearData(
-          createYearData(yearNum, state.values, state.defaults, updatedTransactions),
-        );
-      }
-    }
+    const yearNum = parseInt(state.values.year, 10);
+    const created =
+      !Number.isNaN(yearNum) && state.hydrated
+        ? await createTransaction(yearNum, transaction)
+        : null;
+    const nextTransaction: RevenueTransaction = {
+      ...transaction,
+      ...(created ?? {}),
+      attachments: transaction.attachments ?? [],
+    };
+    setTransactions((prev) => [...prev, nextTransaction]);
+  };
+
+  const handleUpdateTransaction = async (transaction: RevenueTransaction) => {
+    const updated = await updateTransaction(transaction.id, transaction);
+    setTransactions((prev) =>
+      prev.map((t) =>
+        t.id === transaction.id
+          ? {
+              ...t,
+              ...transaction,
+              ...(updated ?? {}),
+              attachments: t.attachments ?? [],
+            }
+          : t,
+      ),
+    );
   };
 
   const handleDeleteTransaction = async (id: string) => {
-    const updatedTransactions = transactions.filter((t) => t.id !== id);
-    setTransactions(updatedTransactions);
-    
-    // Delete from database via API
+    setTransactions((prev) => prev.filter((t) => t.id !== id));
     await deleteTransaction(id);
-    
-    // Also update the year data to keep it in sync
-    if (state.hydrated) {
-      const yearNum = parseInt(state.values.year, 10);
-      if (!isNaN(yearNum)) {
-        await saveYearData(
-          createYearData(yearNum, state.values, state.defaults, updatedTransactions),
-        );
-      }
-    }
+  };
+
+  const handleUploadAttachment = async (transactionId: string, file: File) => {
+    const uploaded = await uploadAttachment(transactionId, file);
+    if (!uploaded) return;
+    setTransactions((prev) =>
+      prev.map((t) =>
+        t.id === transactionId
+          ? { ...t, attachments: [...(t.attachments ?? []), uploaded] }
+          : t,
+      ),
+    );
+  };
+
+  const handleDeleteAttachment = async (attachmentId: string, transactionId: string) => {
+    const ok = await deleteAttachment(attachmentId);
+    if (!ok) return;
+    setTransactions((prev) =>
+      prev.map((t) =>
+        t.id === transactionId
+          ? {
+              ...t,
+              attachments: (t.attachments ?? []).filter((att) => att.id !== attachmentId),
+            }
+          : t,
+      ),
+    );
   };
 
   const handleOpenCalculatorModal = () => {
@@ -420,13 +454,18 @@ export function HomeClient({ initialYear, initialData }: HomeClientProps) {
       <div className="pointer-events-none absolute -top-24 right-10 h-64 w-64 rounded-full bg-[radial-gradient(circle,#f7e0c8,transparent_70%)] opacity-70 blur-3xl" />
       <div className="pointer-events-none absolute left-8 top-48 h-72 w-72 rounded-full bg-[radial-gradient(circle,#d9ebdf,transparent_70%)] opacity-70 blur-3xl" />
 
-      <div className="relative mx-auto flex max-w-6xl flex-col gap-8 px-6 py-12">
+      <div className="relative flex w-full flex-col gap-8 px-[10px] py-12">
         <header className="animate-fade-up">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="inline-flex items-center gap-2 rounded-full border border-card-border bg-white/70 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-muted">
               Персональний калькулятор
             </div>
             <div className="flex items-center gap-3">
+              <YearsDropdown
+                currentYear={currentYearNum}
+                onYearSelect={handleYearChange}
+                onRefresh={() => setYearsRefreshKey((k) => k + 1)}
+              />
               <button
                 type="button"
                 onClick={handleOpenCalculatorModal}
@@ -440,12 +479,6 @@ export function HomeClient({ initialYear, initialData }: HomeClientProps) {
               >
                 Резервна копія
               </Link>
-              <YearSelector
-                currentYear={currentYearNum}
-                currentInputs={state.values}
-                currentDefaults={state.defaults}
-                onYearChange={handleYearChange}
-              />
             </div>
           </div>
           <h1 className="mt-4 font-display text-4xl text-foreground sm:text-5xl">
@@ -457,36 +490,35 @@ export function HomeClient({ initialYear, initialData }: HomeClientProps) {
           </p>
         </header>
 
-        <YearsOverview
-          key={yearsRefreshKey}
-          onYearSelect={handleYearChange}
-          onRefresh={() => setYearsRefreshKey((k) => k + 1)}
-        />
-
-        <YearSummary
-          year={currentYearNum}
-          totalRevenue={inputsWithTransactions.revenue}
-          transactionCount={transactions.length}
-          results={results}
-          inputs={inputsWithTransactions}
-        />
-
-        <div className="animate-fade-in" style={{ animationDelay: "120ms" }}>
-          <ResultsPanel
-            results={results}
-            inputs={inputsWithTransactions}
-            onCopySummary={handleCopySummary}
-            copyStatus={copyStatus}
-          />
-        </div>
-
         <div className="animate-fade-in" style={{ animationDelay: "180ms" }}>
           <RevenueTransactions
             year={currentYearNum}
             transactions={transactions}
             onAddTransaction={handleAddTransaction}
+            onUpdateTransaction={handleUpdateTransaction}
             onDeleteTransaction={handleDeleteTransaction}
+            onUploadAttachment={handleUploadAttachment}
+            onDeleteAttachment={handleDeleteAttachment}
           />
+        </div>
+
+        <div className="grid gap-8 md:grid-cols-2">
+          <YearSummary
+            year={currentYearNum}
+            totalRevenue={inputsWithTransactions.revenue}
+            transactionCount={transactions.length}
+            results={results}
+            inputs={inputsWithTransactions}
+          />
+
+          <div className="animate-fade-in" style={{ animationDelay: "120ms" }}>
+            <ResultsPanel
+              results={results}
+              inputs={inputsWithTransactions}
+              onCopySummary={handleCopySummary}
+              copyStatus={copyStatus}
+            />
+          </div>
         </div>
 
         <div className="animate-fade-in" style={{ animationDelay: "240ms" }}>

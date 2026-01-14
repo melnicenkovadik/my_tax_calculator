@@ -59,6 +59,10 @@ export type RevenueTransaction = {
   date: string; // YYYY-MM-DD format
   amount: number;
   description?: string;
+  sender?: string;
+  billTo?: string;
+  notes?: string;
+  attachments?: TransactionAttachment[];
 };
 
 export type YearData = {
@@ -71,4 +75,14 @@ export type YearData = {
 
 export type YearsData = {
   [year: string]: YearData;
+};
+
+export type TransactionAttachment = {
+  id: string;
+  transactionId: string;
+  url: string;
+  contentType: string;
+  originalName: string;
+  size: number;
+  createdAt: string;
 };

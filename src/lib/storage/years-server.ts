@@ -2,6 +2,7 @@ import { ensureTables, sql } from "@/lib/db";
 import type {
   CalculatorInputValues,
   RevenueTransaction,
+  TransactionAttachment,
   YearData,
 } from "@/lib/tax/types";
 
@@ -48,6 +49,9 @@ const normalizeStoredTransactions = (value: unknown): RevenueTransaction[] => {
         date?: unknown;
         amount?: unknown;
         description?: unknown;
+        sender?: unknown;
+        billTo?: unknown;
+        notes?: unknown;
       };
       const date = normalizeDateString(candidate.date);
       const amount = normalizeAmount(candidate.amount);
@@ -57,19 +61,36 @@ const normalizeStoredTransactions = (value: unknown): RevenueTransaction[] => {
         candidate.description.trim()
           ? candidate.description.trim()
           : undefined;
+      const sender =
+        typeof candidate.sender === "string" && candidate.sender.trim()
+          ? candidate.sender.trim()
+          : undefined;
+      const billTo =
+        typeof candidate.billTo === "string" && candidate.billTo.trim()
+          ? candidate.billTo.trim()
+          : undefined;
+      const notes =
+        typeof candidate.notes === "string" && candidate.notes.trim()
+          ? candidate.notes.trim()
+          : undefined;
       const rawId = typeof candidate.id === "string" ? candidate.id : "";
-      const id = rawId || (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
-        ? crypto.randomUUID()
-        : "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (char) => {
-            const rand = Math.floor(Math.random() * 16);
-            const value = char === "x" ? rand : (rand & 0x3) | 0x8;
-            return value.toString(16);
-          }));
+      const id =
+        rawId ||
+        (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+          ? crypto.randomUUID()
+          : "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (char) => {
+              const rand = Math.floor(Math.random() * 16);
+              const value = char === "x" ? rand : (rand & 0x3) | 0x8;
+              return value.toString(16);
+            }));
       const tx: RevenueTransaction = {
         id,
         date,
         amount,
         ...(description !== undefined ? { description } : {}),
+        ...(sender !== undefined ? { sender } : {}),
+        ...(billTo !== undefined ? { billTo } : {}),
+        ...(notes !== undefined ? { notes } : {}),
       };
       return tx;
     })
@@ -112,11 +133,37 @@ export async function fetchYearDataServer(
     }
     const row = rows[0];
     const { rows: transactionRows } = await sql`
-      SELECT id, date, amount, description
+      SELECT id, date, amount, description, sender, bill_to, notes
       FROM transactions
       WHERE year = ${year}
       ORDER BY date DESC, created_at DESC
     `;
+    const transactionIds = transactionRows.map((transaction) => String(transaction.id));
+    let attachmentsByTransaction: Record<string, TransactionAttachment[]> = {};
+    if (transactionIds.length > 0) {
+      // Query attachments for all transactions
+      // Use individual queries if array support is not available
+      const attachmentPromises = transactionIds.map(async (id) => {
+        const { rows } = await sql`
+          SELECT id, transaction_id, url, content_type, original_name, size, created_at
+          FROM transaction_attachments
+          WHERE transaction_id = ${id}
+        `;
+        return rows.map((row) => ({
+          id: String(row.id),
+          transactionId: String(row.transaction_id),
+          url: String(row.url),
+          contentType: String(row.content_type),
+          originalName: String(row.original_name),
+          size: Number(row.size),
+          createdAt: new Date(row.created_at).toISOString(),
+        }));
+      });
+      const attachmentArrays = await Promise.all(attachmentPromises);
+      transactionIds.forEach((id, index) => {
+        attachmentsByTransaction[id] = attachmentArrays[index];
+      });
+    }
     const transactions = transactionRows
       .map((transaction) => {
         const date = normalizeDateString(transaction.date);
@@ -132,6 +179,16 @@ export async function fetchYearDataServer(
           date,
           amount,
           ...(description !== undefined ? { description } : {}),
+          ...(typeof transaction.sender === "string" && transaction.sender.trim()
+            ? { sender: transaction.sender.trim() }
+            : {}),
+          ...(typeof transaction.bill_to === "string" && transaction.bill_to.trim()
+            ? { billTo: transaction.bill_to.trim() }
+            : {}),
+          ...(typeof transaction.notes === "string" && transaction.notes.trim()
+            ? { notes: transaction.notes.trim() }
+            : {}),
+          attachments: attachmentsByTransaction[String(transaction.id)] ?? [],
         };
         return tx;
       })

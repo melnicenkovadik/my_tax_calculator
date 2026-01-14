@@ -19,10 +19,13 @@ export function YearsOverview({
     [],
   );
   const [isCollapsed, setIsCollapsed] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
+      setIsLoading(true);
+      setIsCollapsed(false); // Auto-expand during loading
       try {
           const list = await fetchYears();
           const rows = await Promise.all(
@@ -35,9 +38,15 @@ export function YearsOverview({
               }
             }),
           );
-          if (!cancelled) setYearRows(rows);
+          if (!cancelled) {
+            setYearRows(rows);
+            setIsLoading(false);
+          }
       } catch {
-        if (!cancelled) setYearRows([]);
+        if (!cancelled) {
+          setYearRows([]);
+          setIsLoading(false);
+        }
       }
     };
     load();
@@ -46,7 +55,7 @@ export function YearsOverview({
     };
   }, [onRefresh]);
 
-  if (yearRows.length === 0) {
+  if (!isLoading && yearRows.length === 0) {
     return null;
   }
 
@@ -99,7 +108,34 @@ export function YearsOverview({
           isCollapsed ? "max-h-0 overflow-hidden opacity-0" : "max-h-[2000px] opacity-100"
         }`}
       >
-        {yearRows.map(({ year, data }) => {
+        {isLoading ? (
+          <>
+            {[1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className="rounded-2xl border border-card-border bg-white/70 p-4"
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3">
+                      <div className="h-6 w-16 animate-pulse rounded bg-card-border/50" />
+                      <div className="h-4 w-24 animate-pulse rounded bg-card-border/50" />
+                    </div>
+                    <div className="mt-2 grid grid-cols-2 gap-4">
+                      <div>
+                        <div className="h-4 w-32 animate-pulse rounded bg-card-border/50" />
+                      </div>
+                      <div>
+                        <div className="h-4 w-40 animate-pulse rounded bg-card-border/50" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </>
+        ) : (
+          yearRows.map(({ year, data }) => {
           const yearData = data;
           if (!yearData) return null;
 
@@ -162,7 +198,8 @@ export function YearsOverview({
               </div>
             </div>
           );
-        })}
+        })
+        )}
       </div>
     </section>
   );

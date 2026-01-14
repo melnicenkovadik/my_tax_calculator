@@ -50,6 +50,18 @@ export async function POST(req: Request) {
       typeof payload?.description === "string" && payload.description.trim()
         ? payload.description.trim()
         : undefined;
+    const sender =
+      typeof payload?.sender === "string" && payload.sender.trim()
+        ? payload.sender.trim()
+        : undefined;
+    const billTo =
+      typeof payload?.billTo === "string" && payload.billTo.trim()
+        ? payload.billTo.trim()
+        : undefined;
+    const notes =
+      typeof payload?.notes === "string" && payload.notes.trim()
+        ? payload.notes.trim()
+        : undefined;
     const rawId = typeof payload?.id === "string" ? payload.id : "";
     const id =
       uuidRegex.test(rawId) && rawId
@@ -63,13 +75,16 @@ export async function POST(req: Request) {
             });
 
     await sql`
-      INSERT INTO transactions (id, year, date, amount, description, created_at)
+      INSERT INTO transactions (id, year, date, amount, description, sender, bill_to, notes, created_at)
       VALUES (
         ${id},
         ${yearNum},
         ${date},
         ${amount},
         ${description ?? null},
+        ${sender ?? null},
+        ${billTo ?? null},
+        ${notes ?? null},
         NOW()
       );
     `;
@@ -86,6 +101,9 @@ export async function POST(req: Request) {
         date,
         amount,
         description,
+        sender,
+        billTo,
+        notes,
       },
     });
   } catch (error) {

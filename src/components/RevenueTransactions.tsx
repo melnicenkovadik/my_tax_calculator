@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { TransactionForm } from "./TransactionForm";
 import { TransactionsList } from "./TransactionsList";
 import { formatCurrency } from "@/lib/format/currency";
@@ -25,20 +26,28 @@ const monthOptions = [
 type RevenueTransactionsProps = {
   year: number;
   transactions: RevenueTransaction[];
-  onAddTransaction: (transaction: RevenueTransaction) => void;
-  onDeleteTransaction: (id: string) => void;
+  onAddTransaction: (transaction: RevenueTransaction) => Promise<void> | void;
+  onUpdateTransaction: (transaction: RevenueTransaction) => Promise<void> | void;
+  onDeleteTransaction: (id: string) => Promise<void> | void;
+  onUploadAttachment?: (transactionId: string, file: File) => Promise<void> | void;
+  onDeleteAttachment?: (attachmentId: string, transactionId: string) => Promise<void> | void;
 };
 
 export function RevenueTransactions({
   year,
   transactions,
   onAddTransaction,
+  onUpdateTransaction,
   onDeleteTransaction,
+  onUploadAttachment,
+  onDeleteAttachment,
 }: RevenueTransactionsProps) {
   const [query, setQuery] = useState("");
   const [monthFilter, setMonthFilter] = useState("all");
   const [sortBy, setSortBy] = useState("date_desc");
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editing, setEditing] = useState<RevenueTransaction | null>(null);
 
   const totalRevenue = useMemo(
     () => transactions.reduce((sum, t) => sum + t.amount, 0),
@@ -55,7 +64,7 @@ export function RevenueTransactions({
         return false;
       }
       if (normalizedQuery) {
-        const haystack = `${transaction.description ?? ""} ${transaction.date}`
+        const haystack = `${transaction.description ?? ""} ${transaction.sender ?? ""} ${transaction.billTo ?? ""} ${transaction.notes ?? ""} ${transaction.date}`
           .toLowerCase()
           .trim();
         if (!haystack.includes(normalizedQuery)) {
@@ -105,6 +114,32 @@ export function RevenueTransactions({
     setPendingDeleteId(null);
   };
 
+  const handleSubmit = async (transaction: RevenueTransaction) => {
+    if (editing && editing.id === transaction.id) {
+      await onUpdateTransaction(transaction);
+      setEditing(null);
+      setIsModalOpen(false);
+      return;
+    }
+    await onAddTransaction(transaction);
+    setIsModalOpen(false);
+  };
+
+  const handleOpenAddModal = () => {
+    setEditing(null);
+    setIsModalOpen(true);
+  };
+
+  const handleOpenEditModal = (transaction: RevenueTransaction) => {
+    setEditing(transaction);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setEditing(null);
+  };
+
   return (
     <section className="rounded-3xl border border-card-border bg-card/80 p-5 shadow-[0_20px_60px_-40px_rgba(25,25,25,0.35)] backdrop-blur">
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -119,10 +154,13 @@ export function RevenueTransactions({
             Повний список доходів за рік з пошуком та фільтрами.
           </p>
         </div>
-      </div>
-
-      <div className="mt-4">
-        <TransactionForm onAdd={onAddTransaction} />
+        <button
+          type="button"
+          onClick={handleOpenAddModal}
+          className="rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-accent-strong"
+        >
+          + Додати транзакцію
+        </button>
       </div>
 
       <div className="mt-4 flex flex-wrap gap-3">
@@ -210,6 +248,9 @@ export function RevenueTransactions({
         <TransactionsList
           transactions={filteredTransactions}
           onDelete={requestDelete}
+          onEdit={handleOpenEditModal}
+          onUploadAttachment={onUploadAttachment}
+          onDeleteAttachment={onDeleteAttachment}
           emptyMessage={
             transactions.length === 0
               ? "Немає транзакцій. Додайте перший дохід вище."
@@ -218,41 +259,77 @@ export function RevenueTransactions({
         />
       </div>
 
-      {pendingTransaction ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
-          <div className="relative z-10 w-full max-w-md rounded-2xl border border-card-border bg-card/95 p-6 shadow-2xl">
-            <h3 className="text-lg font-semibold text-foreground">Видалити транзакцію?</h3>
-            <p className="mt-2 text-sm text-muted">
-              Це дію не можна скасувати. Переконайтеся, що видаляєте потрібний запис.
-            </p>
-            <div className="mt-4 rounded-xl border border-card-border bg-white/70 p-3 text-sm text-foreground">
-              <p className="font-semibold">
-                {formatCurrency(pendingTransaction.amount)} · {pendingTransaction.date}
-              </p>
-              <p className="text-muted">
-                {pendingTransaction.description?.trim() || "Без опису"}
-              </p>
-            </div>
-            <div className="mt-6 flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={cancelDelete}
-                className="rounded-full border border-card-border px-4 py-2 text-sm font-semibold text-muted transition hover:border-foreground/30 hover:text-foreground"
-              >
-                Скасувати
-              </button>
-              <button
-                type="button"
-                onClick={confirmDelete}
-                className="rounded-full bg-rose-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-rose-700"
-              >
-                Видалити
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      {isModalOpen && typeof window !== "undefined"
+        ? createPortal(
+            <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-8">
+              <div
+                className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+                onClick={handleCloseModal}
+              />
+              <div className="relative z-10 w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl border border-card-border bg-card/95 p-6 shadow-2xl">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-foreground">
+                    {editing ? "Редагувати транзакцію" : "Додати транзакцію"}
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={handleCloseModal}
+                    className="rounded-full p-1 text-muted transition hover:bg-white/50 hover:text-foreground"
+                    aria-label="Закрити"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <TransactionForm
+                  onSubmit={handleSubmit}
+                  editing={editing}
+                  onCancelEdit={handleCloseModal}
+                  onUploadAttachment={onUploadAttachment}
+                />
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
+
+      {pendingTransaction && typeof window !== "undefined"
+        ? createPortal(
+            <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+              <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+              <div className="relative z-10 w-full max-w-md rounded-2xl border border-card-border bg-card/95 p-6 shadow-2xl">
+                <h3 className="text-lg font-semibold text-foreground">Видалити транзакцію?</h3>
+                <p className="mt-2 text-sm text-muted">
+                  Це дію не можна скасувати. Переконайтеся, що видаляєте потрібний запис.
+                </p>
+                <div className="mt-4 rounded-xl border border-card-border bg-white/70 p-3 text-sm text-foreground">
+                  <p className="font-semibold">
+                    {formatCurrency(pendingTransaction.amount)} · {pendingTransaction.date}
+                  </p>
+                  <p className="text-muted">
+                    {pendingTransaction.description?.trim() || "Без опису"}
+                  </p>
+                </div>
+                <div className="mt-6 flex justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={cancelDelete}
+                    className="rounded-full border border-card-border px-4 py-2 text-sm font-semibold text-muted transition hover:border-foreground/30 hover:text-foreground"
+                  >
+                    Скасувати
+                  </button>
+                  <button
+                    type="button"
+                    onClick={confirmDelete}
+                    className="rounded-full bg-rose-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-rose-700"
+                  >
+                    Видалити
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
     </section>
   );
 }
