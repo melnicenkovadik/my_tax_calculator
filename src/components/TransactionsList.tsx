@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { formatCurrency } from "@/lib/format/currency";
 import type { RevenueTransaction } from "@/lib/tax/types";
 
@@ -46,6 +47,178 @@ type TransactionsListProps = {
   emptyMessage?: string;
 };
 
+function EmailModal({
+  transaction,
+  onClose,
+}: {
+  transaction: RevenueTransaction;
+  onClose: () => void;
+}) {
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+  const { subject, body } = generateEmailContent(transaction);
+  const fullEmail = `To: martina@studiobollani.it\nFrom: melnicenkovadik@gmail.com\nSubject: ${subject}\n\n${body}`;
+
+  const handleCopy = async (text: string, field: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedField(field);
+      setTimeout(() => setCopiedField(null), 2000);
+    } catch (err) {
+      console.error("Failed to copy", err);
+    }
+  };
+
+  if (typeof window === "undefined") return null;
+
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-8">
+      <div
+        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      <div className="relative z-10 w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl border border-card-border bg-card/95 p-6 shadow-2xl">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-foreground">
+            Email per commercialista
+          </h3>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-full p-1 text-muted transition hover:bg-white/50 hover:text-foreground"
+            aria-label="Закрити"
+          >
+            ✕
+          </button>
+        </div>
+        <div className="space-y-4">
+          <div className="rounded-xl border border-card-border bg-white/80 p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1">
+                <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">
+                  To:
+                </div>
+                <div className="text-sm text-foreground">martina@studiobollani.it</div>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleCopy("martina@studiobollani.it", "to")}
+                className="rounded px-2 py-1 text-xs text-muted transition hover:bg-accent-wash/50 hover:text-accent"
+                title="Copia"
+              >
+                {copiedField === "to" ? "✓" : "📋"}
+              </button>
+            </div>
+          </div>
+          <div className="rounded-xl border border-card-border bg-white/80 p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1">
+                <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">
+                  From:
+                </div>
+                <div className="text-sm text-foreground">melnicenkovadik@gmail.com</div>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleCopy("melnicenkovadik@gmail.com", "from")}
+                className="rounded px-2 py-1 text-xs text-muted transition hover:bg-accent-wash/50 hover:text-accent"
+                title="Copia"
+              >
+                {copiedField === "from" ? "✓" : "📋"}
+              </button>
+            </div>
+          </div>
+          <div className="rounded-xl border border-card-border bg-white/80 p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1">
+                <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">
+                  Subject:
+                </div>
+                <div className="text-sm font-medium text-foreground">{subject}</div>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleCopy(subject, "subject")}
+                className="rounded px-2 py-1 text-xs text-muted transition hover:bg-accent-wash/50 hover:text-accent"
+                title="Copia"
+              >
+                {copiedField === "subject" ? "✓" : "📋"}
+              </button>
+            </div>
+          </div>
+          <div className="rounded-xl border border-card-border bg-white/80 p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1">
+                <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">
+                  Body:
+                </div>
+                <pre className="whitespace-pre-wrap text-sm text-foreground font-mono">{body}</pre>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleCopy(body, "body")}
+                className="rounded px-2 py-1 text-xs text-muted transition hover:bg-accent-wash/50 hover:text-accent shrink-0"
+                title="Copia"
+              >
+                {copiedField === "body" ? "✓" : "📋"}
+              </button>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => handleCopy(fullEmail, "full")}
+            className="w-full rounded-xl bg-accent px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-accent-strong flex items-center justify-center gap-2"
+          >
+            {copiedField === "full" ? (
+              <>
+                <span>✓</span>
+                <span>Copiato!</span>
+              </>
+            ) : (
+              <>
+                <span>📋</span>
+                <span>Copia email completo</span>
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+function generateEmailContent(transaction: RevenueTransaction): { subject: string; body: string } {
+  const date = new Date(transaction.date);
+  const formattedDate = date.toLocaleDateString("it-IT", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+
+  const subject = `Transazione ${formattedDate} - ${formatCurrency(transaction.amount)}`;
+  
+  const bodyLines: string[] = [];
+  
+  bodyLines.push(`Data: ${formattedDate}`);
+  bodyLines.push(`Importo: ${formatCurrency(transaction.amount)}`);
+  
+  if (transaction.billTo) {
+    bodyLines.push(`\nBill To:\n${transaction.billTo}`);
+  }
+  
+  if (transaction.attachments && transaction.attachments.length > 0) {
+    bodyLines.push(`\nAllegati:`);
+    transaction.attachments.forEach((att) => {
+      bodyLines.push(`- ${att.originalName}: ${att.url}`);
+    });
+  }
+  
+  return {
+    subject,
+    body: bodyLines.join("\n"),
+  };
+}
+
 export function TransactionsList({
   transactions,
   onDelete,
@@ -54,6 +227,8 @@ export function TransactionsList({
   onDeleteAttachment,
   emptyMessage,
 }: TransactionsListProps) {
+  const [emailModalTransaction, setEmailModalTransaction] = useState<RevenueTransaction | null>(null);
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString("uk-UA", {
@@ -101,6 +276,17 @@ export function TransactionsList({
                   title="Редагувати транзакцію"
                 >
                   ✎
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setEmailModalTransaction(transaction);
+                  }}
+                  className="mr-1 rounded-full p-0.5 text-base text-muted transition hover:bg-green-50 hover:text-green-700"
+                  title="Показати email для комерціаліста"
+                >
+                  ✉
                 </button>
                 <button
                   type="button"
@@ -260,6 +446,12 @@ export function TransactionsList({
         </tbody>
         </table>
       </div>
+      {emailModalTransaction && (
+        <EmailModal
+          transaction={emailModalTransaction}
+          onClose={() => setEmailModalTransaction(null)}
+        />
+      )}
     </div>
   );
 }
