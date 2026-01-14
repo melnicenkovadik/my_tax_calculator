@@ -462,6 +462,7 @@ export function TransactionsList({
               <th className="px-4 py-3 text-left max-w-[250px]">Нотатки</th>
               <th className="px-4 py-3 text-right">Сума</th>
               <th className="px-4 py-3 text-left max-w-[280px]">Вкладення</th>
+              <th className="px-4 py-3 text-left">Causale</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-card-border/60">
@@ -638,6 +639,9 @@ export function TransactionsList({
                     </label>
                   ) : null}
                 </div>
+              </td>
+              <td className="px-4 py-3 text-left text-xs text-muted">
+                {transaction.causale?.trim() || "—"}
               </td>
             </tr>
           ))}

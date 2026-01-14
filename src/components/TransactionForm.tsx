@@ -29,6 +29,7 @@ export function TransactionForm({
   const [sender, setSender] = useState("");
   const [billTo, setBillTo] = useState("");
   const [notes, setNotes] = useState("");
+  const [causale, setCausale] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [uploadingFiles, setUploadingFiles] = useState(false);
   const [templates, setTemplates] = useState<TransactionTemplate[]>([]);
@@ -43,6 +44,7 @@ export function TransactionForm({
       setSender(editing.sender ?? "");
       setBillTo(editing.billTo ?? "");
       setNotes(editing.notes ?? "");
+      setCausale(editing.causale ?? "");
       setSelectedTemplateId("");
     } else {
       setDate(new Date().toISOString().split("T")[0]);
@@ -51,6 +53,7 @@ export function TransactionForm({
       setSender("");
       setBillTo("");
       setNotes("");
+      setCausale("");
       setSelectedTemplateId("");
     }
   }, [editing]);
@@ -117,6 +120,7 @@ export function TransactionForm({
       sender: sender.trim() || undefined,
       billTo: billTo.trim() || undefined,
       notes: notes.trim() || undefined,
+      causale: causale.trim() || undefined,
     };
 
     // Store files to upload after transaction is created
@@ -147,6 +151,7 @@ export function TransactionForm({
       setSender("");
       setBillTo("");
       setNotes("");
+      setCausale("");
       setFiles([]);
     }
   };
@@ -189,6 +194,19 @@ export function TransactionForm({
           placeholder="0.00"
           required
         />
+      </label>
+      <label className="text-xs text-muted">
+        Causale (необов'язково)
+        <select
+          value={causale}
+          onChange={(e) => setCausale(e.target.value)}
+          className="mt-1 w-full rounded-xl border border-card-border bg-white/80 px-3 py-2 text-sm shadow-sm transition focus:outline-none focus:ring-2 focus:ring-accent/30"
+        >
+          <option value="">-- Оберіть значення --</option>
+          <option value="BONIFICO ESTERO">BONIFICO ESTERO</option>
+          <option value="GIROCONTO/BONIFICO">GIROCONTO/BONIFICO</option>
+          <option value="Versamento Contante">Versamento Contante</option>
+        </select>
       </label>
       <label className="text-xs text-muted">
         Опис (необов'язково)

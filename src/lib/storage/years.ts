@@ -125,7 +125,9 @@ export async function deleteTransaction(id: string): Promise<boolean> {
 export async function updateTransaction(
   id: string,
   transaction: Pick<RevenueTransaction, "date" | "amount"> &
-    Partial<Pick<RevenueTransaction, "description" | "sender" | "billTo" | "notes">>,
+    Partial<
+      Pick<RevenueTransaction, "description" | "sender" | "billTo" | "notes" | "causale">
+    >,
 ): Promise<RevenueTransaction | null> {
   try {
     const res = await fetch(`${TRANSACTIONS_API}/${id}`, {

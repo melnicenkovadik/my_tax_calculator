@@ -62,6 +62,10 @@ export async function POST(req: Request) {
       typeof payload?.notes === "string" && payload.notes.trim()
         ? payload.notes.trim()
         : undefined;
+    const causale =
+      typeof payload?.causale === "string" && payload.causale.trim()
+        ? payload.causale.trim()
+        : undefined;
     const rawId = typeof payload?.id === "string" ? payload.id : "";
     const id =
       uuidRegex.test(rawId) && rawId
@@ -75,7 +79,7 @@ export async function POST(req: Request) {
             });
 
     await sql`
-      INSERT INTO transactions (id, year, date, amount, description, sender, bill_to, notes, created_at)
+      INSERT INTO transactions (id, year, date, amount, description, sender, bill_to, notes, causale, created_at)
       VALUES (
         ${id},
         ${yearNum},
@@ -85,6 +89,7 @@ export async function POST(req: Request) {
         ${sender ?? null},
         ${billTo ?? null},
         ${notes ?? null},
+        ${causale ?? null},
         NOW()
       );
     `;
@@ -104,6 +109,7 @@ export async function POST(req: Request) {
         sender,
         billTo,
         notes,
+        causale,
       },
     });
   } catch (error) {

@@ -52,6 +52,7 @@ const normalizeStoredTransactions = (value: unknown): RevenueTransaction[] => {
         sender?: unknown;
         billTo?: unknown;
         notes?: unknown;
+        causale?: unknown;
       };
       const date = normalizeDateString(candidate.date);
       const amount = normalizeAmount(candidate.amount);
@@ -73,6 +74,10 @@ const normalizeStoredTransactions = (value: unknown): RevenueTransaction[] => {
         typeof candidate.notes === "string" && candidate.notes.trim()
           ? candidate.notes.trim()
           : undefined;
+      const causale =
+        typeof candidate.causale === "string" && candidate.causale.trim()
+          ? candidate.causale.trim()
+          : undefined;
       const rawId = typeof candidate.id === "string" ? candidate.id : "";
       const id =
         rawId ||
@@ -91,6 +96,7 @@ const normalizeStoredTransactions = (value: unknown): RevenueTransaction[] => {
         ...(sender !== undefined ? { sender } : {}),
         ...(billTo !== undefined ? { billTo } : {}),
         ...(notes !== undefined ? { notes } : {}),
+        ...(causale !== undefined ? { causale } : {}),
       };
       return tx;
     })
@@ -133,7 +139,7 @@ export async function fetchYearDataServer(
     }
     const row = rows[0];
     const { rows: transactionRows } = await sql`
-      SELECT id, date, amount, description, sender, bill_to, notes
+      SELECT id, date, amount, description, sender, bill_to, notes, causale
       FROM transactions
       WHERE year = ${year}
       ORDER BY date DESC, created_at DESC
@@ -187,6 +193,9 @@ export async function fetchYearDataServer(
             : {}),
           ...(typeof transaction.notes === "string" && transaction.notes.trim()
             ? { notes: transaction.notes.trim() }
+            : {}),
+          ...(typeof transaction.causale === "string" && transaction.causale.trim()
+            ? { causale: transaction.causale.trim() }
             : {}),
           attachments: attachmentsByTransaction[String(transaction.id)] ?? [],
         };

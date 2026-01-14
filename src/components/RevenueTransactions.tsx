@@ -70,7 +70,7 @@ export function RevenueTransactions({
         return false;
       }
       if (normalizedQuery) {
-        const haystack = `${transaction.description ?? ""} ${transaction.sender ?? ""} ${transaction.billTo ?? ""} ${transaction.notes ?? ""} ${transaction.date}`
+        const haystack = `${transaction.description ?? ""} ${transaction.sender ?? ""} ${transaction.billTo ?? ""} ${transaction.notes ?? ""} ${transaction.causale ?? ""} ${transaction.date}`
           .toLowerCase()
           .trim();
         if (!haystack.includes(normalizedQuery)) {

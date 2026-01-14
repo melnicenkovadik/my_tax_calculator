@@ -31,6 +31,7 @@ export async function ensureTables() {
         sender TEXT,
         bill_to TEXT,
         notes TEXT,
+        causale TEXT,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
     `;
@@ -78,6 +79,16 @@ export async function ensureTables() {
     `;
     if (billToColumn.length === 0) {
       await sql`ALTER TABLE transactions ADD COLUMN bill_to TEXT`;
+    }
+
+    // Add causale column if missing
+    const { rows: causaleColumn } = await sql`
+      SELECT column_name
+      FROM information_schema.columns
+      WHERE table_name = 'transactions' AND column_name = 'causale';
+    `;
+    if (causaleColumn.length === 0) {
+      await sql`ALTER TABLE transactions ADD COLUMN causale TEXT`;
     }
   }
 

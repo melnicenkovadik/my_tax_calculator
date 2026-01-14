@@ -57,6 +57,10 @@ export async function PUT(
       typeof payload?.notes === "string" && payload.notes.trim()
         ? payload.notes.trim()
         : undefined;
+    const causale =
+      typeof payload?.causale === "string" && payload.causale.trim()
+        ? payload.causale.trim()
+        : undefined;
 
     const { rowCount } = await sql`
       UPDATE transactions
@@ -65,7 +69,8 @@ export async function PUT(
           description = ${description ?? null},
           sender = ${sender ?? null},
           bill_to = ${billTo ?? null},
-          notes = ${notes ?? null}
+          notes = ${notes ?? null},
+          causale = ${causale ?? null}
       WHERE id = ${id}
     `;
 
@@ -75,7 +80,7 @@ export async function PUT(
 
     return NextResponse.json({
       ok: true,
-      transaction: { id, date, amount, description, sender, billTo, notes },
+      transaction: { id, date, amount, description, sender, billTo, notes, causale },
     });
   } catch (error) {
     console.error("PUT /api/transactions/[id] error", error);

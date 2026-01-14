@@ -62,6 +62,7 @@ export type RevenueTransaction = {
   sender?: string;
   billTo?: string;
   notes?: string;
+  causale?: string;
   attachments?: TransactionAttachment[];
 };
 
