@@ -253,8 +253,13 @@ export function HomeClient({ initialYear, initialData }: HomeClientProps) {
   useEffect(() => {
     if (!state.hydrated) return;
     const yearNum = parseInt(state.values.year, 10);
+    if (Number.isNaN(yearNum)) return;
     const urlYear = searchParams.get("year");
-    if (!isNaN(yearNum) && urlYear !== String(yearNum)) {
+    const pending = pendingYearChange.current;
+    if (pending && urlYear === String(pending.year) && yearNum !== pending.year) {
+      return;
+    }
+    if (urlYear !== String(yearNum)) {
       const params = new URLSearchParams(searchParams.toString());
       params.set("year", String(yearNum));
       router.replace(`/?${params.toString()}`, { scroll: false });
