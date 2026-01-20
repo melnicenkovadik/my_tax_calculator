@@ -11,6 +11,14 @@ export const DEFAULT_SPLIT: ScheduleSplit = {
   model: "standard",
 };
 
+const INPS_MAX_BASE_BY_YEAR: Record<number, number> = {
+  2024: 120_607,
+  2025: 120_607,
+};
+
+export const DEFAULT_INPS_ACCONTO_RATE = 0.8;
+export const DEFAULT_TAX_ACCONTO_RATE = 1;
+
 export function computeTaxableBase(revenue: number, coeff: number): number {
   return revenue * coeff;
 }
@@ -22,15 +30,37 @@ export function computeInpsGestioneSeparata(
   return taxableBase * inpsRate;
 }
 
+export function resolveGestioneSeparataBase(
+  taxableBase: number,
+  year: number,
+): number {
+  const maxBase = INPS_MAX_BASE_BY_YEAR[year];
+  if (typeof maxBase !== "number") return taxableBase;
+  return Math.min(taxableBase, maxBase);
+}
+
+export function computeAccontoBase(
+  inps: number,
+  tax: number,
+  inpsAccontoRate = DEFAULT_INPS_ACCONTO_RATE,
+  taxAccontoRate = DEFAULT_TAX_ACCONTO_RATE,
+): number {
+  return inps * inpsAccontoRate + tax * taxAccontoRate;
+}
+
 export function computeTax(base: number, taxRate: number): number {
   return base * taxRate;
 }
 
 export function computeTotals(inputs: CalculatorInputs): CalculatorResults {
   const taxableBase = computeTaxableBase(inputs.revenue, inputs.coeff);
+  const inpsBase =
+    inputs.inpsType === "gestione_separata"
+      ? resolveGestioneSeparataBase(taxableBase, inputs.year)
+      : 0;
   const inps =
     inputs.inpsType === "gestione_separata"
-      ? computeInpsGestioneSeparata(taxableBase, inputs.inpsRate)
+      ? computeInpsGestioneSeparata(inpsBase, inputs.inpsRate)
       : 0;
   const baseAfterDeduction = inputs.inpsDeductible
     ? Math.max(taxableBase - inps, 0)
@@ -67,18 +97,17 @@ export function resolveScheduleSplit(inputs: CalculatorInputs): ScheduleSplit {
 }
 
 export function computeSchedule(
-  totalDue: number,
+  saldo: number,
+  accontoBase: number,
   accontoEnabled: boolean,
   split: ScheduleSplit,
 ): ScheduleItem[] {
-  const saldo = totalDue;
-
   if (!accontoEnabled) {
     return [{ key: "june", amount: saldo, saldo, acconto: 0 }];
   }
 
-  const accontoJune = totalDue * split.june;
-  const accontoNovember = totalDue * split.november;
+  const accontoJune = accontoBase * split.june;
+  const accontoNovember = accontoBase * split.november;
 
   return [
     {

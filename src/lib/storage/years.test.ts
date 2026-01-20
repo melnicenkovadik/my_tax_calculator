@@ -12,7 +12,7 @@ const baseInputs: CalculatorInputValues = {
   coeff: "0.67",
   taxRate: "0.05",
   inpsType: "gestione_separata",
-  inpsRate: "0.26",
+  inpsRate: "0.2607",
   inpsDeductible: true,
   applyAcconti: true,
   splitModel: "standard",

@@ -12,6 +12,7 @@ import { TemplatesModal } from "@/components/TemplatesModal";
 import Link from "next/link";
 import { formatCurrency, formatPercent } from "@/lib/format/currency";
 import {
+  computeAccontoBase,
   computeSchedule,
   computeTotals,
   resolveScheduleSplit,
@@ -48,7 +49,7 @@ const defaultInputValues: CalculatorInputValues = {
   coeff: "0.67",
   taxRate: "0.05",
   inpsType: "gestione_separata",
-  inpsRate: "0.26",
+  inpsRate: "0.2607",
   inpsDeductible: true,
   applyAcconti: true,
   splitModel: "standard",
@@ -332,9 +333,13 @@ export function HomeClient({ initialYear, initialData }: HomeClientProps) {
     () => resolveScheduleSplit(state.lastValid),
     [state.lastValid],
   );
+  const accontoBase = useMemo(
+    () => computeAccontoBase(results.inps, results.tax),
+    [results.inps, results.tax],
+  );
   const schedule = useMemo(
-    () => computeSchedule(results.totalDue, state.lastValid.applyAcconti, split),
-    [results.totalDue, split, state.lastValid.applyAcconti],
+    () => computeSchedule(results.totalDue, accontoBase, state.lastValid.applyAcconti, split),
+    [results.totalDue, accontoBase, split, state.lastValid.applyAcconti],
   );
   const summaryText = useMemo(
     () => buildSummary(inputsWithTransactions, results, schedule, split),

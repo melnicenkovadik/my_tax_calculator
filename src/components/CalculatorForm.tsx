@@ -124,7 +124,7 @@ export function CalculatorForm({
             inputMode="decimal"
             min={0}
             max={1}
-            step="0.01"
+            step="0.0001"
             value={values.coeff}
             onChange={(event) => onChange("coeff", event.target.value)}
             className={getInputClass(Boolean(errors.coeff))}
