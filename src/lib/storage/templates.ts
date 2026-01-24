@@ -74,7 +74,7 @@ export async function deleteTemplate(id: string): Promise<boolean> {
 
     return true;
   } catch (error) {
-    console.error("Failed to delete template", error);
+    console.error("Failed to delete template:", error);
     return false;
   }
 }

@@ -56,7 +56,7 @@ export type ScheduleItem = {
 
 export type RevenueTransaction = {
   id: string;
-  date: string; // YYYY-MM-DD format
+  date: string;
   amount: number;
   description?: string;
   sender?: string;

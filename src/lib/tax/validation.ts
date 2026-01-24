@@ -34,7 +34,7 @@ const numberField = (
 const baseInputsSchema = z.object({
   year: numberField("Податковий рік", { min: 1900, max: 2100 }).refine(
     (value) => Number.isInteger(value),
-    "Податковий рік має бути цілим числом",
+    "Податковий рік має бути цілим числом!",
   ),
   revenue: numberField("Дохід", { min: 0 }),
   coeff: numberField("Коефіцієнт", { min: 0, max: 1 }),
@@ -70,7 +70,7 @@ const customSplitSchema = baseInputsSchema
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["customSplitJune"],
-        message: "Розподіл має дорівнювати 1.00",
+        message: "Розподіл має дорівнювати 1.00!",
       });
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
