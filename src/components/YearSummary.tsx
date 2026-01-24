@@ -24,10 +24,6 @@ export function YearSummary({
     transactionCount > 0
       ? `${transactionCount} транзакцій · середня ${formatCurrency(averageTransaction)}`
       : "Дохід задано вручну або ще немає транзакцій";
-  const inpsRateLabel =
-    inputs.inpsType === "gestione_separata"
-      ? `Ставка ${formatPercent(inputs.inpsRate)}`
-      : "Artigiani/Commercianti";
 
   const summaryCollapsed = useUiStore((state) => state.summaryCollapsed);
   const toggleSummary = useUiStore((state) => state.toggleSummary);
