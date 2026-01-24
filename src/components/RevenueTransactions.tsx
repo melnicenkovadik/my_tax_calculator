@@ -87,6 +87,7 @@ export function RevenueTransactions({
 
       const aDate = new Date(a.date).getTime();
       const bDate = new Date(b.date).getTime();
+      
       return sortBy === "date_asc" ? aDate - bDate : bDate - aDate;
     });
 
