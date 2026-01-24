@@ -4,7 +4,7 @@ import type { ScheduleItem, ScheduleSplit } from "@/lib/tax/types";
 const getLabel = (item: ScheduleItem, year: number, accontoEnabled: boolean) => {
   if (item.key === "june") {
     return accontoEnabled
-      ? `Сальдо ${year} + 1-й аконто ${year + 1}`
+      ? `Сальдо ${year} + 1-Й аконто ${year + 1}`
       : `Сальдо ${year}`;
   }
   return `2-й аконто ${year + 1}`;
