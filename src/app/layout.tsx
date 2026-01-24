@@ -13,7 +13,6 @@ const displayFont = Fraunces({
   subsets: ["latin"],
 });
 
-
 export default function RootLayout({
   children,
 }: Readonly<{
