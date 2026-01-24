@@ -3,6 +3,7 @@ type InfoTooltipProps = {
 };
 
 export function InfoTooltip({ text }: InfoTooltipProps) {
+  
   return (
     <span className="group relative ml-1 inline-flex">
       <span
