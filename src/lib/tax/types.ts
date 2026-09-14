@@ -1,7 +1,5 @@
 export type InpsType = "gestione_separata" | "artigiani_commercianti";
 
-export type SplitModel = "standard" | "custom";
-
 export type CalculatorInputs = {
   year: number;
   revenue: number;
@@ -10,10 +8,9 @@ export type CalculatorInputs = {
   inpsType: InpsType;
   inpsRate: number;
   inpsDeductible: boolean;
-  applyAcconti: boolean;
-  splitModel: SplitModel;
-  customSplitJune: number;
-  customSplitNovember: number;
+  // Advances already paid for this year (from F24). Undefined = derived from the previous year.
+  inpsAccontiPaid?: number;
+  taxAccontiPaid?: number;
 };
 
 export type CalculatorInputValues = {
@@ -24,15 +21,14 @@ export type CalculatorInputValues = {
   inpsType: InpsType;
   inpsRate: string;
   inpsDeductible: boolean;
-  applyAcconti: boolean;
-  splitModel: SplitModel;
-  customSplitJune: string;
-  customSplitNovember: string;
+  inpsAccontiPaid?: string;
+  taxAccontiPaid?: string;
 };
 
 export type CalculatorResults = {
   taxableBase: number;
   inps: number;
+  inpsDeduction: number;
   baseAfterDeduction: number;
   tax: number;
   totalDue: number;
@@ -41,17 +37,28 @@ export type CalculatorResults = {
   effectiveTotalRate: number;
 };
 
-export type ScheduleSplit = {
-  june: number;
-  november: number;
-  model: SplitModel;
-};
-
 export type ScheduleItem = {
-  key: "june" | "november";
+  key: "saldo" | "november";
+  dueDate: string;
   amount: number;
   saldo: number;
   acconto: number;
+};
+
+export type YearChainEntry = {
+  inputs: CalculatorInputs;
+  revenue: number;
+};
+
+export type YearPlan = {
+  year: number;
+  totals: CalculatorResults;
+  inpsAccontiPaid: number;
+  taxAccontiPaid: number;
+  inpsPaidInYear: number;
+  nextInpsAcconti: number;
+  nextTaxAcconti: number;
+  payments: ScheduleItem[];
 };
 
 export type RevenueTransaction = {

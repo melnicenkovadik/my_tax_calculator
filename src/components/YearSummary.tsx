@@ -1,13 +1,12 @@
 import { formatCurrency, formatPercent } from "@/lib/format/currency";
 import { useUiStore } from "@/lib/state/ui";
-import type { CalculatorInputs, CalculatorResults } from "@/lib/tax/types";
+import type { CalculatorResults } from "@/lib/tax/types";
 
 type YearSummaryProps = {
   year: number;
   totalRevenue: number;
   transactionCount: number;
   results: CalculatorResults;
-  inputs: CalculatorInputs;
 };
 
 export function YearSummary({
@@ -15,7 +14,6 @@ export function YearSummary({
   totalRevenue,
   transactionCount,
   results,
-  inputs,
 }: YearSummaryProps) {
   const averageTransaction =
     transactionCount > 0 ? totalRevenue / transactionCount : 0;
@@ -41,9 +39,6 @@ export function YearSummary({
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-2 rounded-full border border-card-border bg-white/70 px-3 py-1.5 text-xs font-semibold text-muted">
-            {inputs.applyAcconti ? "Аконто увімкнено" : "Аконто вимкнено"}
-          </div>
           <button
             type="button"
             onClick={toggleSummary}

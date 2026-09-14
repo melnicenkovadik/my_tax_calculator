@@ -83,7 +83,9 @@ export function ResultsPanel({
             <div>
               <p className={labelBase}>Податкова база після відрахування INPS</p>
               <p className="text-xs text-muted">
-                {inputs.inpsDeductible ? "Відрахування застосовано" : "Відрахування вимкнено"}
+                {inputs.inpsDeductible
+                  ? `Мінус INPS, сплачений у ${inputs.year}: ${formatCurrency(results.inpsDeduction)}`
+                  : "Відрахування вимкнено"}
               </p>
             </div>
             <p className={valueBase}>{formatCurrency(results.baseAfterDeduction)}</p>

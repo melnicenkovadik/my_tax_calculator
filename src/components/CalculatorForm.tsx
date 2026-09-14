@@ -198,7 +198,7 @@ export function CalculatorForm({
           <div>
             <p className="text-sm font-medium text-foreground">
               INPS відраховується від оподатковуваної бази
-              <InfoTooltip text="Якщо увімкнено, INPS зменшує базу для imposta sostitutiva." />
+              <InfoTooltip text="INPS, фактично сплачений протягом року (сальдо минулого року + аванси цього), зменшує базу для imposta sostitutiva." />
             </p>
             <p className="text-xs text-muted">За замовчуванням увімкнено.</p>
           </div>
@@ -216,92 +216,48 @@ export function CalculatorForm({
           </label>
         </div>
 
-        <div className="flex items-center justify-between gap-3 rounded-2xl border border-card-border bg-white/70 p-4">
+        <div className="grid gap-4 md:grid-cols-2">
           <div>
-            <p className="text-sm font-medium text-foreground">
-              Застосувати аконто
-              <InfoTooltip text="Аконто розраховуються як орієнтовна сума від загальної суми поточного року." />
-            </p>
-            <p className="text-xs text-muted">За замовчуванням увімкнено.</p>
-          </div>
-          <label className="relative inline-flex cursor-pointer items-center">
+            <label className="text-sm font-medium text-foreground">
+              Сплачені цього року аванси INPS, €
+              <InfoTooltip text="Сума авансів INPS за цей рік із квитанцій F24 (червень/липень + листопад). Порожньо — рахуємо з попереднього року." />
+            </label>
             <input
-              type="checkbox"
-              className="peer sr-only"
-              checked={values.applyAcconti}
-              onChange={(event) =>
-                onChange("applyAcconti", event.target.checked)
-              }
+              type="number"
+              inputMode="decimal"
+              min={0}
+              step="0.01"
+              placeholder="авто"
+              value={values.inpsAccontiPaid ?? ""}
+              onChange={(event) => onChange("inpsAccontiPaid", event.target.value)}
+              className={getInputClass(Boolean(errors.inpsAccontiPaid))}
+              aria-invalid={Boolean(errors.inpsAccontiPaid)}
             />
-            <span className="h-6 w-11 rounded-full bg-muted/30 transition peer-checked:bg-accent/70"></span>
-            <span className="absolute left-1 top-1 h-4 w-4 rounded-full bg-white shadow transition peer-checked:translate-x-5"></span>
-          </label>
-        </div>
-
-        <div>
-          <label className="text-sm font-medium text-foreground">
-            Модель розподілу аконто
-          </label>
-          <select
-            value={values.splitModel}
-            onChange={(event) => onChange("splitModel", event.target.value)}
-            className={getInputClass(Boolean(errors.splitModel))}
-          >
-            <option value="standard">Червень 40% + Листопад 60%</option>
-            <option value="custom">Власні відсотки</option>
-          </select>
-        </div>
-
-        {values.splitModel === "custom" ? (
-          <div className="grid gap-4 md:grid-cols-2">
-            <div>
-              <label className="text-sm font-medium text-foreground">
-                Розподіл за червень (0.00 - 1.00)
-              </label>
-              <input
-                type="number"
-                inputMode="decimal"
-                min={0}
-                max={1}
-                step="0.01"
-                value={values.customSplitJune}
-                onChange={(event) =>
-                  onChange("customSplitJune", event.target.value)
-                }
-                className={getInputClass(Boolean(errors.customSplitJune))}
-                aria-invalid={Boolean(errors.customSplitJune)}
-              />
-              {errors.customSplitJune ? (
-                <p className="mt-1 text-xs text-rose-600">
-                  {errors.customSplitJune}
-                </p>
-              ) : null}
-            </div>
-            <div>
-              <label className="text-sm font-medium text-foreground">
-                Розподіл за листопад (0.00 - 1.00)
-              </label>
-              <input
-                type="number"
-                inputMode="decimal"
-                min={0}
-                max={1}
-                step="0.01"
-                value={values.customSplitNovember}
-                onChange={(event) =>
-                  onChange("customSplitNovember", event.target.value)
-                }
-                className={getInputClass(Boolean(errors.customSplitNovember))}
-                aria-invalid={Boolean(errors.customSplitNovember)}
-              />
-              {errors.customSplitNovember ? (
-                <p className="mt-1 text-xs text-rose-600">
-                  {errors.customSplitNovember}
-                </p>
-              ) : null}
-            </div>
+            {errors.inpsAccontiPaid ? (
+              <p className="mt-1 text-xs text-rose-600">{errors.inpsAccontiPaid}</p>
+            ) : null}
           </div>
-        ) : null}
+          <div>
+            <label className="text-sm font-medium text-foreground">
+              Сплачені цього року аванси податку, €
+              <InfoTooltip text="Сума авансів imposta sostitutiva за цей рік із квитанцій F24. Порожньо — рахуємо з попереднього року." />
+            </label>
+            <input
+              type="number"
+              inputMode="decimal"
+              min={0}
+              step="0.01"
+              placeholder="авто"
+              value={values.taxAccontiPaid ?? ""}
+              onChange={(event) => onChange("taxAccontiPaid", event.target.value)}
+              className={getInputClass(Boolean(errors.taxAccontiPaid))}
+              aria-invalid={Boolean(errors.taxAccontiPaid)}
+            />
+            {errors.taxAccontiPaid ? (
+              <p className="mt-1 text-xs text-rose-600">{errors.taxAccontiPaid}</p>
+            ) : null}
+          </div>
+        </div>
       </div>
     </div>
   );

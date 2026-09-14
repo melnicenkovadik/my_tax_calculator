@@ -31,7 +31,10 @@ const numberField = (
   return z.preprocess(toNumber, base);
 };
 
-const baseInputsSchema = z.object({
+const optionalAmountField = (label: string) =>
+  z.preprocess(toNumber, z.number().min(0, `${label} має бути >= 0`).optional());
+
+export const calculatorInputsSchema = z.object({
   year: numberField("Податковий рік", { min: 1900, max: 2100 }).refine(
     (value) => Number.isInteger(value),
     "Податковий рік має бути цілим числом!",
@@ -45,45 +48,9 @@ const baseInputsSchema = z.object({
   inpsType: z.enum(["gestione_separata", "artigiani_commercianti"]),
   inpsRate: numberField("Ставка INPS", { min: 0, max: 1 }),
   inpsDeductible: z.boolean(),
-  applyAcconti: z.boolean(),
+  inpsAccontiPaid: optionalAmountField("Сплачені аванси INPS"),
+  taxAccontiPaid: optionalAmountField("Сплачені аванси податку"),
 });
-
-const standardSplitSchema = baseInputsSchema.extend({
-  splitModel: z.literal("standard"),
-  customSplitJune: numberField("Розподіл за червень", { min: 0, max: 1 })
-    .optional()
-    .default(0.4),
-  customSplitNovember: numberField("Розподіл за листопад", { min: 0, max: 1 })
-    .optional()
-    .default(0.6),
-});
-
-const customSplitSchema = baseInputsSchema
-  .extend({
-    splitModel: z.literal("custom"),
-    customSplitJune: numberField("Розподіл за червень", { min: 0, max: 1 }),
-    customSplitNovember: numberField("Розподіл за листопад", { min: 0, max: 1 }),
-  })
-  .superRefine((data, ctx) => {
-    const sum = data.customSplitJune + data.customSplitNovember;
-    if (!Number.isFinite(sum) || Math.abs(sum - 1) > 0.001) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["customSplitJune"],
-        message: "Розподіл має дорівнювати 1.00!",
-      });
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["customSplitNovember"],
-        message: "Розподіл має дорівнювати 1.00",
-      });
-    }
-  });
-
-export const calculatorInputsSchema = z.discriminatedUnion("splitModel", [
-  standardSplitSchema,
-  customSplitSchema,
-]);
 
 const toString = (value: unknown): string => {
   if (typeof value === "string") return value;
@@ -100,10 +67,8 @@ export const calculatorInputValuesSchema: z.ZodType<CalculatorInputValues> =
     inpsType: z.enum(["gestione_separata", "artigiani_commercianti"]),
     inpsRate: z.preprocess(toString, z.string()),
     inpsDeductible: z.boolean(),
-    applyAcconti: z.boolean(),
-    splitModel: z.enum(["standard", "custom"]),
-    customSplitJune: z.preprocess(toString, z.string()),
-    customSplitNovember: z.preprocess(toString, z.string()),
+    inpsAccontiPaid: z.preprocess(toString, z.string()).optional(),
+    taxAccontiPaid: z.preprocess(toString, z.string()).optional(),
   });
 
 export const parseCalculatorInputs = (

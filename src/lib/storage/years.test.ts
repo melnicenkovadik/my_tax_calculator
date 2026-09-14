@@ -14,10 +14,6 @@ const baseInputs: CalculatorInputValues = {
   inpsType: "gestione_separata",
   inpsRate: "0.2607",
   inpsDeductible: true,
-  applyAcconti: true,
-  splitModel: "standard",
-  customSplitJune: "0.4",
-  customSplitNovember: "0.6",
 };
 
 describe("createYearData", () => {

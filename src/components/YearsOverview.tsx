@@ -3,7 +3,7 @@
 import { formatCurrency } from "@/lib/format/currency";
 import { fetchYears, fetchYearData, deleteYearData } from "@/lib/storage/years";
 import { parseCalculatorInputs } from "@/lib/tax/validation";
-import { computeTotals } from "@/lib/tax/calculations";
+import { computeYearPlans } from "@/lib/tax/calculations";
 import { useState, useEffect } from "react";
 
 type YearsOverviewProps = {
@@ -58,6 +58,18 @@ export function YearsOverview({
   if (!isLoading && yearRows.length === 0) {
     return null;
   }
+
+  const plansByYear = new Map(
+    computeYearPlans(
+      yearRows.flatMap(({ year, data }) => {
+        const parsed = data ? parseCalculatorInputs(data.inputs).parsed : null;
+        if (!parsed) return [];
+        const txs: Array<{ amount: number }> = data.transactions || [];
+        const revenue = txs.reduce((sum, t) => sum + t.amount, 0) || parsed.revenue;
+        return [{ inputs: { ...parsed, year }, revenue }];
+      }),
+    ).map((plan) => [plan.year, plan]),
+  );
 
   const handleDelete = (year: number, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -147,8 +159,7 @@ export function YearsOverview({
             (sum: number, t: { amount: number }) => sum + t.amount,
             0,
           );
-          const inputsWithRevenue = { ...parsed.parsed, revenue: totalRevenue || parsed.parsed.revenue };
-          const results = computeTotals(inputsWithRevenue);
+          const totalDue = plansByYear.get(year)?.totals.totalDue ?? 0;
           const lastUpdated = new Date(yearData.lastUpdated);
 
           return (
@@ -182,7 +193,7 @@ export function YearsOverview({
                     <div>
                       <span className="text-muted">Всього до сплати:</span>{" "}
                       <span className="font-semibold text-foreground">
-                        {formatCurrency(results.totalDue)}
+                        {formatCurrency(totalDue)}
                       </span>
                     </div>
                   </div>

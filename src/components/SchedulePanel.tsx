@@ -1,27 +1,23 @@
-import { formatCurrency, formatPercent } from "@/lib/format/currency";
-import type { ScheduleItem, ScheduleSplit } from "@/lib/tax/types";
+import { formatCurrency } from "@/lib/format/currency";
+import type { ScheduleItem } from "@/lib/tax/types";
 
-const getLabel = (item: ScheduleItem, year: number, accontoEnabled: boolean) => {
-  if (item.key === "june") {
-    return accontoEnabled
-      ? `Сальдо ${year} + 1-Й аконто ${year + 1}`
-      : `Сальдо ${year}`;
-  }
-  return `2-й аконто ${year + 1}`;
-};
+export const formatDueDate = (isoDate: string) => isoDate.split("-").reverse().join(".");
+
+const getLabel = (item: ScheduleItem, year: number) =>
+  item.key === "saldo" ? `Сальдо ${year} + 1-й аконто ${year + 1}` : `2-й аконто ${year + 1}`;
 
 type SchedulePanelProps = {
   year: number;
-  accontoEnabled: boolean;
-  split: ScheduleSplit;
   items: ScheduleItem[];
+  inpsAccontiPaid: number;
+  taxAccontiPaid: number;
 };
 
 export function SchedulePanel({
   year,
-  accontoEnabled,
-  split,
   items,
+  inpsAccontiPaid,
+  taxAccontiPaid,
 }: SchedulePanelProps) {
   return (
     <section className="rounded-3xl border border-card-border bg-card/80 p-5 shadow-[0_20px_60px_-40px_rgba(25,25,25,0.35)] backdrop-blur">
@@ -32,7 +28,7 @@ export function SchedulePanel({
         Графік
       </h2>
       <p className="mt-2 text-sm text-muted">
-        Типові терміни для сальдо та аконто.
+        Що і до якої дати платити в {year + 1} за {year} рік.
       </p>
 
       <div className="mt-6 grid gap-4">
@@ -44,10 +40,10 @@ export function SchedulePanel({
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted">
-                  {item.key === "june" ? "Червень" : "Листопад"}
+                  до {formatDueDate(item.dueDate)}
                 </p>
                 <p className="mt-2 text-sm font-semibold text-foreground">
-                  {getLabel(item, year, accontoEnabled)}
+                  {getLabel(item, year)}
                 </p>
               </div>
               <p className="text-base font-semibold text-foreground">
@@ -58,6 +54,9 @@ export function SchedulePanel({
               {item.saldo > 0 ? (
                 <span>Сальдо: {formatCurrency(item.saldo)}</span>
               ) : null}
+              {item.saldo < 0 ? (
+                <span>Переплата: {formatCurrency(-item.saldo)} (зменшує платежі)</span>
+              ) : null}
               {item.acconto > 0 ? (
                 <span>Аконто: {formatCurrency(item.acconto)}</span>
               ) : null}
@@ -66,21 +65,12 @@ export function SchedulePanel({
         ))}
       </div>
 
-      {accontoEnabled ? (
-        <div className="mt-4 rounded-2xl border border-card-border bg-white/70 px-4 py-3 text-xs text-muted">
-          Аконто розраховано як % від загальної суми поточного року (орієнтовно).
-          <span className="ml-2">
-            Розподіл: {formatPercent(split.june)} / {formatPercent(split.november)}.
-          </span>
-          <span className="ml-2">
-            Для точних значень зверніться до комерціаліста.
-          </span>
-        </div>
-      ) : (
-        <div className="mt-4 rounded-2xl border border-card-border bg-white/70 px-4 py-3 text-xs text-muted">
-          Аконто вимкнено. Показано лише сальдо.
-        </div>
-      )}
+      <div className="mt-4 rounded-2xl border border-card-border bg-white/70 px-4 py-3 text-xs text-muted">
+        Враховано вже сплачені аванси за {year}: INPS {formatCurrency(inpsAccontiPaid)}, податок{" "}
+        {formatCurrency(taxAccontiPaid)}. Аконто: INPS 40% + 40%, податок 50% + 50% (до 103 € — усе в
+        листопаді). Літній строк щороку можуть перенести; його можна розбити на частини до грудня з
+        відсотками. Точні суми — у комерціаліста.
+      </div>
     </section>
   );
 }

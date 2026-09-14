@@ -4,26 +4,21 @@ import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { CalculatorForm } from "@/components/CalculatorForm";
 import { ResultsPanel } from "@/components/ResultsPanel";
-import { SchedulePanel } from "@/components/SchedulePanel";
+import { SchedulePanel, formatDueDate } from "@/components/SchedulePanel";
 import { YearsDropdown } from "@/components/YearsDropdown";
 import { YearSummary } from "@/components/YearSummary";
 import { RevenueTransactions } from "@/components/RevenueTransactions";
 import { TemplatesModal } from "@/components/TemplatesModal";
 import Link from "next/link";
 import { formatCurrency, formatPercent } from "@/lib/format/currency";
-import {
-  computeAccontoBase,
-  computeSchedule,
-  computeTotals,
-  resolveScheduleSplit,
-} from "@/lib/tax/calculations";
+import { computeYearPlans } from "@/lib/tax/calculations";
 import type {
   CalculatorInputValues,
   CalculatorInputs,
-  ScheduleItem,
-  ScheduleSplit,
   RevenueTransaction,
+  YearChainEntry,
   YearData,
+  YearPlan,
   TransactionTemplate,
 } from "@/lib/tax/types";
 import {
@@ -31,6 +26,7 @@ import {
   parseCalculatorInputs,
 } from "@/lib/tax/validation";
 import {
+  fetchYears,
   fetchYearData,
   saveYearData,
   createYearData,
@@ -51,10 +47,6 @@ const defaultInputValues: CalculatorInputValues = {
   inpsType: "gestione_separata",
   inpsRate: "0.2607",
   inpsDeductible: true,
-  applyAcconti: true,
-  splitModel: "standard",
-  customSplitJune: "0.4",
-  customSplitNovember: "0.6",
 };
 
 const initialParsed = parseCalculatorInputs(defaultInputValues)
@@ -164,12 +156,8 @@ const parseInputValues = (payload: unknown) => {
   return result.success ? result.data : null;
 };
 
-const buildSummary = (
-  inputs: CalculatorInputs,
-  results: ReturnType<typeof computeTotals>,
-  schedule: ScheduleItem[],
-  split: ScheduleSplit,
-) => {
+const buildSummary = (inputs: CalculatorInputs, plan: YearPlan) => {
+  const results = plan.totals;
   const lines: string[] = [
     `Калькулятор податків Italian Forfettario (${inputs.year})`,
     `Дохід: ${formatCurrency(inputs.revenue)}`,
@@ -184,39 +172,17 @@ const buildSummary = (
     `Imposta sostitutiva (${formatPercent(inputs.taxRate)}): ${formatCurrency(
       results.tax,
     )}`,
-    `Всього до сплати: ${formatCurrency(results.totalDue)}`,
+    `Всього за рік: ${formatCurrency(results.totalDue)}`,
+    "Графік платежів (орієнтовно):",
   ];
 
-  if (inputs.applyAcconti) {
-    lines.push("Графік платежів (орієнтовно):");
-    schedule.forEach((item) => {
-      if (item.key === "june") {
-        lines.push(
-          `Червень: Сальдо ${inputs.year} + 1-й аконто ${inputs.year + 1} = ${formatCurrency(
-            item.amount,
-          )}`,
-        );
-      } else {
-        lines.push(
-          `Листопад: 2-й аконто ${inputs.year + 1} = ${formatCurrency(
-            item.amount,
-          )}`,
-        );
-      }
-    });
-    lines.push(
-      `Розподіл аконто: ${formatPercent(split.june)} / ${formatPercent(
-        split.november,
-      )} (орієнтовно на основі загальної суми поточного року).`,
-    );
-  } else {
-    const june = schedule[0];
-    lines.push(
-      `Графік: Сальдо за червень ${inputs.year} = ${formatCurrency(
-        june?.amount ?? 0,
-      )}`,
-    );
-  }
+  plan.payments.forEach((item) => {
+    const label =
+      item.key === "saldo"
+        ? `Сальдо ${inputs.year} + 1-й аконто ${inputs.year + 1}`
+        : `2-й аконто ${inputs.year + 1}`;
+    lines.push(`до ${formatDueDate(item.dueDate)}: ${label} = ${formatCurrency(item.amount)}`);
+  });
 
   return lines.join("\n");
 };
@@ -330,25 +296,43 @@ export function HomeClient({ initialYear, initialData }: HomeClientProps) {
     return state.lastValid;
   }, [state.lastValid, transactions, totalRevenue]);
 
-  const results = useMemo(
-    () => computeTotals(inputsWithTransactions),
-    [inputsWithTransactions],
-  );
-  const split = useMemo(
-    () => resolveScheduleSplit(state.lastValid),
-    [state.lastValid],
-  );
-  const accontoBase = useMemo(
-    () => computeAccontoBase(results.inps, results.tax),
-    [results.inps, results.tax],
-  );
-  const schedule = useMemo(
-    () => computeSchedule(results.totalDue, accontoBase, state.lastValid.applyAcconti, split),
-    [results.totalDue, accontoBase, split, state.lastValid.applyAcconti],
-  );
+  const currentYearNum = parseInt(state.values.year, 10) || initialYear;
+
+  // Acconti paid this year come from last year's result, so earlier years feed the plan.
+  const [previousYears, setPreviousYears] = useState<YearChainEntry[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      const years = (await fetchYears()).filter((year) => year < currentYearNum);
+      const rows = await Promise.all(years.map((year) => fetchYearData(year)));
+      if (cancelled) return;
+      setPreviousYears(
+        rows.flatMap((row) => {
+          const parsed = row ? parseCalculatorInputs(row.inputs).parsed : null;
+          if (!row || !parsed) return [];
+          const txs = row.transactions ?? [];
+          const revenue = txs.length > 0 ? txs.reduce((sum, t) => sum + t.amount, 0) : parsed.revenue;
+          return [{ inputs: { ...parsed, year: row.year }, revenue }];
+        }),
+      );
+    };
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [currentYearNum, yearsRefreshKey]);
+
+  const plan = useMemo(() => {
+    const plans = computeYearPlans([
+      ...previousYears.filter((entry) => entry.inputs.year < currentYearNum),
+      { inputs: { ...inputsWithTransactions, year: currentYearNum }, revenue: inputsWithTransactions.revenue },
+    ]);
+    return plans[plans.length - 1];
+  }, [previousYears, inputsWithTransactions, currentYearNum]);
+  const results = plan.totals;
   const summaryText = useMemo(
-    () => buildSummary(inputsWithTransactions, results, schedule, split),
-    [inputsWithTransactions, results, schedule, split],
+    () => buildSummary(inputsWithTransactions, plan),
+    [inputsWithTransactions, plan],
   );
 
   const handleCopySummary = async () => {
@@ -464,8 +448,6 @@ export function HomeClient({ initialYear, initialData }: HomeClientProps) {
     return () => window.removeEventListener("keydown", handleEscape);
   }, [isCalculatorModalOpen]);
 
-  const currentYearNum = parseInt(state.values.year, 10) || initialYear;
-
   return (
     <div className="relative min-h-screen bg-[radial-gradient(circle_at_top_left,#fff3e4,transparent_55%),radial-gradient(circle_at_right,#e8f3ea,transparent_60%),linear-gradient(180deg,#fff6ed,rgba(255,246,237,0.6))] text-foreground">
       <div className="pointer-events-none absolute -top-24 right-10 h-64 w-64 rounded-full bg-[radial-gradient(circle,#f7e0c8,transparent_70%)] opacity-70 blur-3xl" />
@@ -526,7 +508,6 @@ export function HomeClient({ initialYear, initialData }: HomeClientProps) {
             totalRevenue={inputsWithTransactions.revenue}
             transactionCount={transactions.length}
             results={results}
-            inputs={inputsWithTransactions}
           />
 
           <div className="animate-fade-in" style={{ animationDelay: "120ms" }}>
@@ -541,10 +522,10 @@ export function HomeClient({ initialYear, initialData }: HomeClientProps) {
 
         <div className="animate-fade-in" style={{ animationDelay: "240ms" }}>
           <SchedulePanel
-            year={state.lastValid.year}
-            accontoEnabled={state.lastValid.applyAcconti}
-            split={split}
-            items={schedule}
+            year={plan.year}
+            items={plan.payments}
+            inpsAccontiPaid={plan.inpsAccontiPaid}
+            taxAccontiPaid={plan.taxAccontiPaid}
           />
         </div>
 
