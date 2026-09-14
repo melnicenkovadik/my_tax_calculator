@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   computeDeadlines,
+  daysUntil,
+  deadlineTone,
   computeInpsGestioneSeparata,
   computeTotals,
   computeYearPlans,
@@ -75,6 +77,24 @@ describe("computeDeadlines", () => {
     expect(computeDeadlines(2025)).toEqual({ saldo: "2026-07-20", november: "2026-11-30" });
     expect(computeDeadlines(2026)).toEqual({ saldo: "2027-06-30", november: "2027-11-30" });
     expect(computeDeadlines(2023).saldo).toBe("2024-07-01");
+  });
+});
+
+describe("days until deadline", () => {
+  it("counts calendar days across DST and year boundaries", () => {
+    expect(daysUntil("2027-06-30", "2026-09-14")).toBe(289);
+    expect(daysUntil("2026-10-26", "2026-10-24")).toBe(2);
+    expect(daysUntil("2026-09-14", "2026-09-14")).toBe(0);
+    expect(daysUntil("2026-07-20", "2026-09-14")).toBe(-56);
+  });
+
+  it("colours by urgency", () => {
+    expect(deadlineTone(-1)).toBe("past");
+    expect(deadlineTone(0)).toBe("urgent");
+    expect(deadlineTone(14)).toBe("urgent");
+    expect(deadlineTone(15)).toBe("soon");
+    expect(deadlineTone(45)).toBe("soon");
+    expect(deadlineTone(46)).toBe("ok");
   });
 });
 

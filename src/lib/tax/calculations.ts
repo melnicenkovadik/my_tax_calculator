@@ -102,6 +102,26 @@ export function computeDeadlines(taxYear: number): { saldo: string; november: st
   };
 }
 
+export type DeadlineTone = "past" | "urgent" | "soon" | "ok";
+
+const URGENT_DAYS = 14;
+const SOON_DAYS = 45;
+
+export function daysUntil(dueDate: string, today: string): number {
+  const toUtc = (iso: string) => {
+    const [year, month, day] = iso.split("-").map(Number);
+    return Date.UTC(year, month - 1, day);
+  };
+  return Math.round((toUtc(dueDate) - toUtc(today)) / 86_400_000);
+}
+
+export function deadlineTone(days: number): DeadlineTone {
+  if (days < 0) return "past";
+  if (days <= URGENT_DAYS) return "urgent";
+  if (days <= SOON_DAYS) return "soon";
+  return "ok";
+}
+
 // Each year's saldo depends on the acconti paid during that year, which were set by the
 // previous year's result, so years are computed as a chain in ascending order.
 export function computeYearPlans(entries: YearChainEntry[]): YearPlan[] {
